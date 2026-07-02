@@ -91,8 +91,8 @@ export default function App() {
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
 
   const isSupabaseMode = hasValidSupabaseConfig(supabaseConfig);
-  const canCreateEvent = !isSupabaseMode || !!user;
-  const canManageGroups = !isSupabaseMode || user?.role === "admin";
+  const canCreateEvent = isSupabaseMode && !!user;
+  const canManageGroups = isSupabaseMode && user?.role === "admin";
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info" = "success") => {
     const id = Math.random().toString(36).slice(2, 11);
@@ -202,7 +202,11 @@ export default function App() {
   }, [supabaseConfig]);
 
   const ensureCanWriteEvent = (event?: EventData | null) => {
-    if (!isSupabaseMode) return true;
+    if (!isSupabaseMode) {
+      showToast("ต้องเชื่อมต่อ Supabase และเข้าสู่ระบบก่อนจึงจะแก้ไขข้อมูลได้", "error");
+      setIsSupabaseModalOpen(true);
+      return false;
+    }
     if (!user) {
       showToast("กรุณาเข้าสู่ระบบด้วยบัญชี Supabase ก่อนแก้ไขข้อมูล", "error");
       setIsLoginModalOpen(true);
@@ -216,9 +220,8 @@ export default function App() {
   };
 
   const canManageEvent = useCallback((event: EventData) => {
-    if (!isSupabaseMode) return true;
     return !!user && (user.role === "admin" || event.created_by_user_id === user.id);
-  }, [isSupabaseMode, user]);
+  }, [user]);
 
   const validateEventPayload = (formData: Omit<EventData, "id" | "created_at"> & { id?: string }) => {
     if (!formData.title.trim()) return "กรุณากรอกหัวข้อกิจกรรมการประชุม";
@@ -378,7 +381,7 @@ export default function App() {
 
   const handleAddGroup = async (newGroup: Group) => {
     if (!canManageGroups) {
-      showToast("เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการกลุ่มงานได้", "error");
+      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
       return;
     }
 
@@ -403,7 +406,7 @@ export default function App() {
 
   const handleUpdateGroup = async (updatedGroup: Group) => {
     if (!canManageGroups) {
-      showToast("เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการกลุ่มงานได้", "error");
+      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
       return;
     }
 
@@ -428,7 +431,7 @@ export default function App() {
 
   const handleDeleteGroup = async (groupId: string) => {
     if (!canManageGroups) {
-      showToast("เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการกลุ่มงานได้", "error");
+      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
       return;
     }
     if (events.some((event) => event.group_id === groupId)) {
@@ -481,8 +484,13 @@ export default function App() {
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onOpenAddEventModal={() => {
           if (!canCreateEvent) {
-            showToast("กรุณาเข้าสู่ระบบก่อนเพิ่มกิจกรรมบน Supabase", "error");
-            setIsLoginModalOpen(true);
+            if (!isSupabaseMode) {
+              showToast("ต้องเชื่อมต่อ Supabase ก่อนเพิ่มกิจกรรม", "error");
+              setIsSupabaseModalOpen(true);
+            } else {
+              showToast("กรุณาเข้าสู่ระบบก่อนเพิ่มกิจกรรม", "error");
+              setIsLoginModalOpen(true);
+            }
             return;
           }
           setEditingEvent(null);
@@ -490,7 +498,13 @@ export default function App() {
         }}
         onOpenGroupManagerModal={() => {
           if (!canManageGroups) {
-            showToast("เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการกลุ่มงานได้", "error");
+            if (!isSupabaseMode) {
+              showToast("ต้องเชื่อมต่อ Supabase ก่อนจัดการกลุ่มงาน", "error");
+              setIsSupabaseModalOpen(true);
+            } else {
+              showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
+              if (!user) setIsLoginModalOpen(true);
+            }
             return;
           }
           setIsGroupManagerModalOpen(true);
@@ -543,7 +557,7 @@ export default function App() {
               <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-amber-800 font-sans">โหมดข้อมูลในเครื่อง (Local Demo)</p>
-                <p className="text-xs text-amber-600 font-sans mt-0.5">กิจกรรมและกลุ่มงานจะบันทึกในเบราว์เซอร์นี้เท่านั้น หากต้องการระบบผู้ใช้และสิทธิ์จริง กรุณาเชื่อมต่อ Supabase</p>
+                <p className="text-xs text-amber-600 font-sans mt-0.5">โหมดนี้ใช้ดูข้อมูลตัวอย่างเท่านั้น การเพิ่ม แก้ไข หรือลบข้อมูลต้องเชื่อมต่อ Supabase และเข้าสู่ระบบผ่าน Supabase Auth</p>
               </div>
             </div>
             <button

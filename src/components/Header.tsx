@@ -202,7 +202,7 @@ export default function Header({
                     ? "border-slate-200 hover:border-slate-300 text-slate-700"
                     : "border-slate-200 text-slate-400 hover:border-indigo-200"
                 }`}
-                title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "ต้องเป็นผู้ดูแลระบบจึงจะแก้ไขกลุ่มงานได้"}
+                title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "ต้องเข้าสู่ระบบ Supabase Auth ด้วยสิทธิ์ admin จึงจะแก้ไขกลุ่มงานได้"}
               >
                 <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-400"}`} />
                 <span className={`font-sans whitespace-nowrap ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
