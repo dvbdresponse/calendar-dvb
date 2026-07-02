@@ -265,30 +265,34 @@ DROP POLICY IF EXISTS "Admins manage groups" ON public.groups;
 DROP POLICY IF EXISTS "Authenticated users manage groups" ON public.groups;
 CREATE POLICY "Authenticated users manage groups" ON public.groups
   FOR ALL TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Events are publicly readable" ON public.events;
 CREATE POLICY "Events are publicly readable" ON public.events
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow public insert" ON public.events;
+DROP POLICY IF EXISTS "Allow public update" ON public.events;
+DROP POLICY IF EXISTS "Allow public delete" ON public.events;
+
 DROP POLICY IF EXISTS "Authenticated users create events" ON public.events;
 CREATE POLICY "Authenticated users create events" ON public.events
   FOR INSERT TO authenticated
-  WITH CHECK (created_by_user_id = auth.uid());
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Owners and admins update events" ON public.events;
 DROP POLICY IF EXISTS "Authenticated users update events" ON public.events;
 CREATE POLICY "Authenticated users update events" ON public.events
   FOR UPDATE TO authenticated
-  USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Owners and admins delete events" ON public.events;
 DROP POLICY IF EXISTS "Authenticated users delete events" ON public.events;
 CREATE POLICY "Authenticated users delete events" ON public.events
   FOR DELETE TO authenticated
-  USING (auth.uid() IS NOT NULL);
+  USING (true);
 
 -- Profile rows are optional for display names and labels. Authenticated users can edit calendar data.
 -- Example profile row:

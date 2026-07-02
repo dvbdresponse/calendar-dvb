@@ -67,6 +67,13 @@ const groupToPayload = (group: Group) => ({
   border_color: group.borderColor,
 });
 
+const formatSupabaseWriteError = (message: string, tableName: string) => {
+  if (message.toLowerCase().includes("row-level security")) {
+    return `Supabase RLS ยังบล็อกตาราง ${tableName}: กรุณาคัดลอก SQL Schema ล่าสุดจากหน้าตั้งค่าฐานข้อมูลไปรันใน Supabase SQL Editor`;
+  }
+  return message || "เกิดข้อผิดพลาด";
+};
+
 export default function App() {
   const [events, setEvents] = useState<EventData[]>([]);
   const [groups, setGroups] = useState<Group[]>(() => {
@@ -389,7 +396,7 @@ export default function App() {
         showToast("เพิ่มกลุ่มงานใน Supabase เรียบร้อย", "success");
         await loadData(supabaseConfig, { quiet: true });
       } catch (e: any) {
-        showToast(`เพิ่มกลุ่มงานล้มเหลว: ${e.message || "เกิดข้อผิดพลาด"}`, "error");
+        showToast(`เพิ่มกลุ่มงานล้มเหลว: ${formatSupabaseWriteError(e.message || "", "groups")}`, "error");
       }
       return;
     }
@@ -414,7 +421,7 @@ export default function App() {
         showToast("แก้ไขกลุ่มงานใน Supabase เรียบร้อย", "success");
         await loadData(supabaseConfig, { quiet: true });
       } catch (e: any) {
-        showToast(`แก้ไขกลุ่มงานล้มเหลว: ${e.message || "เกิดข้อผิดพลาด"}`, "error");
+        showToast(`แก้ไขกลุ่มงานล้มเหลว: ${formatSupabaseWriteError(e.message || "", "groups")}`, "error");
       }
       return;
     }
@@ -443,7 +450,7 @@ export default function App() {
         showToast("ลบกลุ่มงานใน Supabase เรียบร้อย", "success");
         await loadData(supabaseConfig, { quiet: true });
       } catch (e: any) {
-        showToast(`ลบกลุ่มงานล้มเหลว: ${e.message || "เกิดข้อผิดพลาด"}`, "error");
+        showToast(`ลบกลุ่มงานล้มเหลว: ${formatSupabaseWriteError(e.message || "", "groups")}`, "error");
       }
       return;
     }
