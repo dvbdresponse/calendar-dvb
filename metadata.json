@@ -1,6 +1,6 @@
 {
-  "name": "ระบบปฏิทินการประชุมหน่วยงานราชการ",
-  "description": "ระบบบริหารจัดการและปฏิทินการประชุมสำหรับสำนักงานราชการ แยกสีตามกลุ่มงาน แสดงวันหยุดราชการ และรองรับการทำงานร่วมกับ Supabase",
+  "name": "ALC Calendar",
+  "description": "ระบบบริหารจัดการและปฏิทินการประชุมสำหรับสำนักงาน ALC แยกสีตามกลุ่มงาน แสดงวันหยุดราชการ และรองรับ Supabase Auth",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
