@@ -1,0 +1,6 @@
+{
+  "name": "ระบบปฏิทินการประชุมหน่วยงานราชการ",
+  "description": "ระบบบริหารจัดการและปฏิทินการประชุมสำหรับสำนักงานราชการ แยกสีตามกลุ่มงาน แสดงวันหยุดราชการ และรองรับการทำงานร่วมกับ Supabase",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
