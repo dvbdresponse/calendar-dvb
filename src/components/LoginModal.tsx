@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { AlertCircle, KeyRound, Lock, Mail, Shield, X } from "lucide-react";
-import LordIcon from "./LordIcon";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -64,12 +63,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
 
           <div className="flex flex-col items-center text-center mt-2 mb-6">
             <div className="p-3 bg-red-50 text-red-600 rounded-2xl mb-3 border border-red-100">
-              <LordIcon
-                src="https://cdn.lordicon.com/lyvznjgu.json"
-                colors="primary:#dc2626,secondary:#f87171"
-                size={40}
-                trigger="loop"
-              />
+              <Shield className="w-10 h-10 text-red-600" />
             </div>
             <h3 className="text-base font-bold text-slate-800">เข้าสู่ระบบด้วย Supabase Auth</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">

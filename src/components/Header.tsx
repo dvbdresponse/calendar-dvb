@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { SupabaseConfig, UserSession } from "../types";
-import LordIcon from "./LordIcon";
-import { LogOut, LogIn, Shield, User, Tag, Menu, X } from "lucide-react";
+import { LogOut, LogIn, Shield, User, Tag, Menu, X, CalendarDays, Database, Plus, ClipboardList, Search } from "lucide-react";
 
 interface HeaderProps {
   searchTerm: string;
@@ -76,12 +75,7 @@ export default function Header({
           {/* Logo & Title */}
           <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
             <div className="p-1.5 sm:p-2 bg-red-50 rounded-2xl flex items-center justify-center shrink-0 border border-red-100 mt-0.5 sm:mt-0">
-              <LordIcon 
-                src="https://cdn.lordicon.com/qvyppzqz.json" 
-                colors="primary:#dc2626,secondary:#f87171" 
-                size={34} 
-                trigger="loop" 
-              />
+              <CalendarDays className="w-8 h-8 text-red-600" />
             </div>
             <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
@@ -102,22 +96,12 @@ export default function Header({
                 >
                   {supabaseConfig ? (
                     <>
-                      <LordIcon 
-                        src="https://cdn.lordicon.com/ujgkowid.json" 
-                        colors="primary:#10b981,secondary:#059669" 
-                        size={12} 
-                        trigger="loop" 
-                      />
+                      <Database className="w-3 h-3 text-emerald-600" />
                       <span>Supabase Live</span>
                     </>
                   ) : (
                     <>
-                      <LordIcon 
-                        src="https://cdn.lordicon.com/ujgkowid.json" 
-                        colors="primary:#d97706,secondary:#fbbf24" 
-                        size={12} 
-                        trigger="loop" 
-                      />
+                      <Database className="w-3 h-3 text-amber-600" />
                       <span>Local DB</span>
                     </>
                   )}
@@ -186,12 +170,7 @@ export default function Header({
                 onClick={onOpenSupabaseModal}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0"
               >
-                <LordIcon 
-                  src="https://cdn.lordicon.com/gsqwyapq.json" 
-                  colors="primary:#475569,secondary:#64748b" 
-                  size={16} 
-                  trigger="hover" 
-                />
+                <Database className="w-4 h-4 text-slate-600 shrink-0" />
                 <span className="font-sans whitespace-nowrap">ตั้งค่าฐานข้อมูล</span>
               </button>
 
@@ -219,12 +198,7 @@ export default function Header({
                     onClick={onOpenAddEventModal}
                     className="flex items-center justify-center gap-1.5 px-3.5 py-2 border border-transparent rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all shadow-sm shadow-red-600/10 cursor-pointer transform hover:-translate-y-0.5 animate-fade-in shrink-0"
                   >
-                    <LordIcon 
-                      src="https://cdn.lordicon.com/pdsourgq.json" 
-                      colors="primary:#ffffff,secondary:#ffffff" 
-                      size={16} 
-                      trigger="hover" 
-                    />
+                    <Plus className="w-4 h-4 text-white shrink-0" />
                     <span className="font-sans whitespace-nowrap">เพิ่มกิจกรรม</span>
                   </button>
                 </div>
@@ -296,12 +270,7 @@ export default function Header({
                       onClick={() => { onOpenAddEventModal(); setIsMobileMenuOpen(false); }}
                       className="flex items-center gap-2 w-full px-3 py-2 border border-transparent rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all shadow-sm shadow-red-600/10"
                     >
-                      <LordIcon 
-                        src="https://cdn.lordicon.com/pdsourgq.json" 
-                        colors="primary:#ffffff,secondary:#ffffff" 
-                        size={18} 
-                        trigger="hover" 
-                      />
+                      <Plus className="w-4 h-4 text-white shrink-0" />
                       <span className="font-sans">เพิ่มกิจกรรม</span>
                     </button>
                   </>
@@ -313,12 +282,7 @@ export default function Header({
                   onClick={() => { onOpenSupabaseModal(); setIsMobileMenuOpen(false); }}
                   className="flex items-center gap-2 w-full px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-sm font-semibold transition-all hover:bg-slate-50"
                 >
-                  <LordIcon 
-                    src="https://cdn.lordicon.com/gsqwyapq.json" 
-                    colors="primary:#475569,secondary:#64748b" 
-                    size={18} 
-                    trigger="hover" 
-                  />
+                  <Database className="w-4 h-4 text-slate-600 shrink-0" />
                   <span className="font-sans">ตั้งค่าฐานข้อมูล</span>
                 </button>
 
@@ -342,24 +306,14 @@ export default function Header({
         <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Dynamic Event count */}
           <div className="text-[11px] md:text-xs text-slate-500 font-sans flex items-center gap-1.5 bg-slate-50 py-1 px-2.5 rounded-lg border border-slate-100 w-fit">
-            <LordIcon 
-              src="https://cdn.lordicon.com/nocovwne.json" 
-              colors="primary:#64748b,secondary:#475569" 
-              size={14} 
-              trigger="hover" 
-            />
+            <ClipboardList className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span>มีกิจกรรมทั้งหมดในระบบ: <strong className="text-slate-800 font-bold">{totalEvents}</strong> กิจกรรม</span>
           </div>
 
           {/* Text Search Input */}
           <div className="relative w-full md:w-72 shrink-0">
             <div className="absolute left-3 top-2 pointer-events-none">
-              <LordIcon 
-                src="https://cdn.lordicon.com/msoeawqm.json" 
-                colors="primary:#64748b,secondary:#94a3b8" 
-                size={16} 
-                trigger="hover" 
-              />
+              <Search className="w-4 h-4 text-slate-400" />
             </div>
             <input
               id="search-event-input"

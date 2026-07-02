@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { THAI_HOLIDAYS_2026 } from "../data/constants";
-import LordIcon from "./LordIcon";
 
 interface UnifiedHoliday {
   name: string;
@@ -236,12 +235,7 @@ export default function CalendarView({
           <div className="lg:col-span-3 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <LordIcon 
-                  src="https://cdn.lordicon.com/sbreugur.json" 
-                  colors="primary:#64748b,secondary:#475569" 
-                  size={18} 
-                  trigger="hover"
-                />
+                <Filter className="w-[18px] h-[18px] text-slate-500" />
                 <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wider font-sans">
                   กรองแสดงตามกลุ่มงาน / กองสังกัด
                 </h3>
@@ -343,12 +337,7 @@ export default function CalendarView({
           
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-red-50 text-red-600 rounded-xl">
-              <LordIcon 
-                src="https://cdn.lordicon.com/qvyppzqz.json" 
-                colors="primary:#dc2626,secondary:#ef4444" 
-                size={22} 
-                trigger="hover"
-              />
+              <Calendar className="w-[22px] h-[22px] text-red-600" />
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-850 font-sans tracking-tight">
@@ -659,13 +648,7 @@ export default function CalendarView({
             {agendaSubTab === "meetings" ? (
               meetingAgendaItems.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm/5 animate-fade-in">
-                  <LordIcon 
-                    src="https://cdn.lordicon.com/yqymgxtz.json" 
-                    colors="primary:#dc2626,secondary:#f87171" 
-                    size={64} 
-                    trigger="loop" 
-                    className="mx-auto mb-4" 
-                  />
+                  <Inbox className="w-16 h-16 text-red-400 mx-auto mb-4" />
                   <h3 className="text-base font-bold text-slate-800 font-sans">ไม่มีกิจกรรมการประชุมงานในเดือนนี้</h3>
                   <p className="text-xs text-slate-400 font-sans mt-1.5 max-w-md mx-auto leading-relaxed">
                     ไม่พบข้อมูลวาระงานประชุมราชการในเดือน {THAI_MONTHS[month]} พ.ศ. {year + 543} ท่านสามารถปรับเปลี่ยนตัวกรองกลุ่มงานหรือเพิ่มกิจกรรมการประชุมใหม่ได้
@@ -827,13 +810,7 @@ export default function CalendarView({
             ) : (
               holidayAgendaItems.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm/5 animate-fade-in">
-                  <LordIcon 
-                    src="https://cdn.lordicon.com/qvyppzqz.json" 
-                    colors="primary:#dc2626,secondary:#f87171" 
-                    size={64} 
-                    trigger="loop" 
-                    className="mx-auto mb-4" 
-                  />
+                  <Calendar className="w-16 h-16 text-red-400 mx-auto mb-4" />
                   <h3 className="text-base font-bold text-slate-800 font-sans">ไม่มีวันหยุดราชการหรือสำนักงานในเดือนนี้</h3>
                   <p className="text-xs text-slate-400 font-sans mt-1.5 max-w-md mx-auto leading-relaxed">
                     ไม่พบข้อมูลวันหยุดนักขัตฤกษ์ในเดือน {THAI_MONTHS[month]} พ.ศ. {year + 543} ท่านสามารถเปิดใช้งานตัวเลือก "แสดงวันหยุดราชการ" หรือตั้งค่าเพิ่มวันหยุดในปฏิทินได้
@@ -879,13 +856,7 @@ export default function CalendarView({
                               className="bg-red-50/40 border border-red-100/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-red-50/60"
                             >
                               <div className="flex items-start gap-3">
-                                <LordIcon 
-                                  src="https://cdn.lordicon.com/usownftb.json" 
-                                  colors="primary:#dc2626,secondary:#f87171" 
-                                  size={22} 
-                                  trigger="loop" 
-                                  className="shrink-0 mt-0.5" 
-                                />
+                                <CalendarDays className="w-[22px] h-[22px] text-red-600 shrink-0 mt-0.5" />
                                 <div>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <h5 className="text-sm font-bold text-red-800 font-sans leading-snug">
@@ -954,13 +925,7 @@ export default function CalendarView({
         {/* Holiday Details (if any on selected day) */}
         {getHolidayForDate(selectedDate) && (
           <div className="mb-4 bg-red-50/70 border border-red-200/80 rounded-xl p-4 flex items-start gap-3">
-            <LordIcon 
-              src="https://cdn.lordicon.com/usownftb.json" 
-              colors="primary:#dc2626,secondary:#f87171" 
-              size={24} 
-              trigger="loop" 
-              className="shrink-0 mt-0.5" 
-            />
+            <CalendarDays className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-sm font-bold text-red-800 font-sans">
                 วันนี้คือ {getHolidayForDate(selectedDate)?.name}
@@ -973,13 +938,7 @@ export default function CalendarView({
         {/* Selected date events list */}
         {getEventsForDate(selectedDate).length === 0 ? (
           <div className="text-center py-8 text-slate-400 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
-            <LordIcon 
-              src="https://cdn.lordicon.com/yqymgxtz.json" 
-              colors="primary:#10b981,secondary:#34d399" 
-              size={48} 
-              trigger="loop" 
-              className="mx-auto mb-2" 
-            />
+            <Inbox className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
             <p className="text-sm font-medium font-sans">ไม่มีกิจกรรมการประชุมในวันนี้</p>
             <p className="text-xs text-slate-400 font-sans mt-0.5">สามารถกดเพิ่มกิจกรรมการประชุมใหม่ด้านบนได้</p>
           </div>
@@ -1023,22 +982,12 @@ export default function CalendarView({
                       {/* Online/On-site badge */}
                       {evt.is_online ? (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-emerald-50/60 text-emerald-700 border border-emerald-100/50 flex items-center gap-1">
-                          <LordIcon 
-                            src="https://cdn.lordicon.com/yvbeekuoc.json" 
-                            colors="primary:#10b981,secondary:#34d399" 
-                            size={12} 
-                            trigger="hover" 
-                          />
+                          <Video className="w-3 h-3 text-emerald-600" />
                           ออนไลน์ {evt.online_platform ? `(${evt.online_platform === 'zoom' ? 'Zoom' : evt.online_platform === 'webex' ? 'Webex' : evt.online_platform === 'teams' ? 'Teams' : evt.online_platform === 'meet' ? 'Meet' : 'กำหนดเอง'})` : ''}
                         </span>
                       ) : (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-indigo-50/60 text-indigo-700 border border-indigo-100/50 flex items-center gap-1">
-                          <LordIcon 
-                            src="https://cdn.lordicon.com/iikoxgto.json" 
-                            colors="primary:#4f46e5,secondary:#818cf8" 
-                            size={12} 
-                            trigger="hover" 
-                          />
+                          <MapPin className="w-3 h-3 text-indigo-600" />
                           ออนไซต์ (ในสถานที่)
                         </span>
                       )}
@@ -1056,21 +1005,11 @@ export default function CalendarView({
 
                     <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-slate-450 font-sans">
                       <span className="flex items-center gap-1 text-slate-400">
-                        <LordIcon 
-                          src="https://cdn.lordicon.com/iikoxgto.json" 
-                          colors="primary:#94a3b8,secondary:#64748b" 
-                          size={12} 
-                          trigger="hover" 
-                        />
+                        <MapPin className="w-3 h-3 text-slate-400" />
                         สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ระบุสถานที่"}</strong>
                       </span>
                       <span className="flex items-center gap-1 text-slate-400">
-                        <LordIcon 
-                          src="https://cdn.lordicon.com/ljvjsgbh.json" 
-                          colors="primary:#94a3b8,secondary:#64748b" 
-                          size={12} 
-                          trigger="hover" 
-                        />
+                        <User className="w-3 h-3 text-slate-400" />
                         ผู้ลงบันทึก: <strong className="text-slate-600 font-medium">{evt.created_by || "ผู้ดูแลระบบ"}</strong>
                       </span>
                     </div>
