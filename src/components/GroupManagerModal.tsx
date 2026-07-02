@@ -6,9 +6,9 @@ interface GroupManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   groups: Group[];
-  onAddGroup: (group: Group) => void;
-  onUpdateGroup: (group: Group) => void;
-  onDeleteGroup: (groupId: string) => void;
+  onAddGroup: (group: Group) => void | Promise<void>;
+  onUpdateGroup: (group: Group) => void | Promise<void>;
+  onDeleteGroup: (groupId: string) => void | Promise<void>;
 }
 
 export default function GroupManagerModal({
@@ -29,7 +29,7 @@ export default function GroupManagerModal({
     setFormData(group);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.label) return;
 
     if (editingGroupId === "new") {
@@ -42,9 +42,9 @@ export default function GroupManagerModal({
         textColor: formData.textColor || "text-slate-700",
         borderColor: formData.borderColor || "border-slate-200",
       };
-      onAddGroup(newGroup);
+      await onAddGroup(newGroup);
     } else if (editingGroupId) {
-      onUpdateGroup(formData as Group);
+      await onUpdateGroup(formData as Group);
     }
     
     setEditingGroupId(null);
@@ -279,7 +279,7 @@ export default function GroupManagerModal({
                       <button
                         onClick={() => {
                           if(confirm("คุณต้องการลบกลุ่มงานนี้ใช่หรือไม่?")) {
-                            onDeleteGroup(group.id);
+                            void onDeleteGroup(group.id);
                           }
                         }}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

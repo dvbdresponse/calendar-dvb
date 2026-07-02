@@ -12,6 +12,9 @@ interface HeaderProps {
   onOpenGroupManagerModal: () => void;
   totalEvents: number;
   user: UserSession | null;
+  isAuthLoading: boolean;
+  canCreateEvent: boolean;
+  canManageGroups: boolean;
   onOpenLoginModal: () => void;
   onLogout: () => void;
 }
@@ -25,6 +28,9 @@ export default function Header({
   onOpenGroupManagerModal,
   totalEvents,
   user,
+  isAuthLoading,
+  canCreateEvent,
+  canManageGroups,
   onOpenLoginModal,
   onLogout,
 }: HeaderProps) {
@@ -157,7 +163,7 @@ export default function Header({
                     <span className="font-sans whitespace-nowrap">ออก</span>
                   </button>
                 </div>
-              ) : (
+              ) : supabaseConfig ? (
                 <button
                   id="header-login-btn-desktop"
                   type="button"
@@ -167,6 +173,10 @@ export default function Header({
                   <LogIn className="w-4 h-4 text-red-600 shrink-0" />
                   <span className="font-sans text-red-600 whitespace-nowrap">เข้าสู่ระบบ</span>
                 </button>
+              ) : null}
+
+              {isAuthLoading && (
+                <span className="text-xs font-bold text-slate-400 px-2">กำลังตรวจสอบผู้ใช้...</span>
               )}
 
               {/* Database settings trigger */}
@@ -186,9 +196,9 @@ export default function Header({
               </button>
 
               {/* Create new event button (Only visible to logged in users) */}
-              {user && (
+              {canCreateEvent && (
                 <div className="flex items-center gap-2 shrink-0">
-                  {user.role === "admin" && (
+                  {canManageGroups && (
                     <button
                       onClick={onOpenGroupManagerModal}
                       className="flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0"
@@ -244,7 +254,7 @@ export default function Header({
                       <span className="font-sans font-bold truncate">{user.name}</span>
                     </div>
                   </div>
-                ) : (
+                ) : supabaseConfig ? (
                   <div className="border-b border-slate-100 pb-2 mb-1">
                     <button
                       id="header-login-btn-mobile"
@@ -256,9 +266,9 @@ export default function Header({
                       <span className="font-sans text-red-600">เข้าสู่ระบบ</span>
                     </button>
                   </div>
-                )}
+                ) : null}
 
-                {user && (
+                {canCreateEvent && (
                   <>
                     <button
                       id="open-add-event-btn-mobile"
@@ -275,7 +285,7 @@ export default function Header({
                       <span className="font-sans">เพิ่มกิจกรรม</span>
                     </button>
 
-                    {user.role === "admin" && (
+                    {canManageGroups && (
                       <button
                         onClick={() => { onOpenGroupManagerModal(); setIsMobileMenuOpen(false); }}
                         className="flex items-center gap-2 w-full px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-sm font-semibold transition-all hover:bg-slate-50"

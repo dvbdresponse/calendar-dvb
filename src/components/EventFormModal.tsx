@@ -30,7 +30,8 @@ interface EventFormModalProps {
   groups: Group[];
   selectedDate: string; // Prepopulates when creating
   editingEvent: EventData | null; // Prepopulates when editing
-  onSave: (event: Omit<EventData, "id" | "created_at"> & { id?: string }) => void;
+  currentUserName?: string;
+  onSave: (event: Omit<EventData, "id" | "created_at"> & { id?: string }) => void | Promise<void>;
 }
 
 export default function EventFormModal({
@@ -39,6 +40,7 @@ export default function EventFormModal({
   groups,
   selectedDate,
   editingEvent,
+  currentUserName,
   onSave,
 }: EventFormModalProps) {
   const [title, setTitle] = useState("");
@@ -85,12 +87,12 @@ export default function EventFormModal({
         setEndDate("");
         setStartTime("09:00");
         setEndTime("12:00");
-        setGroupId("gbt");
+        setGroupId(groups[0]?.id || "");
         setLocation("");
         setIsOnline(false);
         setOnlinePlatform("zoom");
         setIsHoliday(false);
-        setCreatedBy("");
+        setCreatedBy(currentUserName || "");
       }
       setErrors({});
       setPickerType(null);
@@ -103,7 +105,7 @@ export default function EventFormModal({
         }
       }
     }
-  }, [isOpen, editingEvent, selectedDate]);
+  }, [isOpen, editingEvent, selectedDate, currentUserName, groups]);
 
   const evtToBool = (val: any): boolean => {
     if (typeof val === "boolean") return val;
@@ -118,6 +120,9 @@ export default function EventFormModal({
     if (!title.trim()) newErrors.title = "กรุณากรอกหัวข้อกิจกรรมการประชุม";
     if (!date) newErrors.date = "กรุณาระบุวันที่จัดกิจกรรม";
     if (endDate && endDate < date) newErrors.endDate = "วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น";
+    if (!groupId || !groups.some((group) => group.id === groupId)) {
+      newErrors.groupId = "กรุณาเลือกกลุ่มงานที่มีอยู่จริง";
+    }
     
     if (!isMultiDay) {
       if (!startTime) newErrors.startTime = "กรุณาระบุเวลาเริ่ม";
@@ -133,13 +138,13 @@ export default function EventFormModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
     const isMultiDay = endDate && endDate !== date;
 
-    onSave({
+    await onSave({
       id: editingEvent?.id,
       title: title.trim(),
       description: description.trim(),
@@ -603,6 +608,7 @@ export default function EventFormModal({
                 </option>
               ))}
             </select>
+            {errors.groupId && <p className="text-xs text-red-500 font-sans">{errors.groupId}</p>}
           </div>
 
           {/* Location field */}

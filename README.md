@@ -1,20 +1,58 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Government Meeting Calendar
 
-# Run and deploy your AI Studio app
+React + Vite calendar app for office meeting schedules. The app supports two modes:
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/3c8a431a-8bbc-49e9-a2b8-ee7ff336cdb3
+- Local demo mode: stores events and groups in the browser with `localStorage`.
+- Supabase mode: reads public calendar data from Supabase and requires Supabase Auth for create, update, delete, and group management.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
-
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+
+   ```bash
+   npm ci
+   ```
+
+2. Optional: create `.env.local` from `.env.example` and set:
+
+   ```bash
+   VITE_SUPABASE_URL="https://your-project.supabase.co"
+   VITE_SUPABASE_ANON_KEY="your-public-anon-key"
+   VITE_SUPABASE_EVENTS_TABLE="events"
+   ```
+
+3. Start the dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+## Supabase Setup
+
+1. Open the app and click database settings.
+2. Copy the SQL schema from the Supabase setup modal.
+3. Run it in Supabase SQL Editor.
+4. Create users in Supabase Authentication.
+5. Add one row per user in `public.profiles`.
+
+Example profile row:
+
+```sql
+INSERT INTO public.profiles (id, email, display_name, role)
+VALUES ('USER_UUID_FROM_AUTH_USERS', 'admin@example.go.th', 'ผู้ดูแลระบบกลาง', 'admin');
+```
+
+Supported roles:
+
+- `admin`: manage all events and groups.
+- `officer`: create events and manage only events they created.
+
+The SQL enables RLS. Calendar events and groups are publicly readable, but writes require an authenticated user and are checked by owner/admin policies.
+
+## Checks
+
+```bash
+npm run lint
+npm run build
+npm audit --omit=dev
+```

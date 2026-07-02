@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { X, Check, Copy, Database, Cloud, Wifi, WifiOff, AlertCircle, RefreshCw, FileText } from "lucide-react";
-import { SupabaseConfig } from "../types";
-import { checkSupabaseConnection, SQL_SCHEMA } from "../utils/supabaseClient";
+import { X, Check, Copy, Database, Cloud, Wifi, AlertCircle, RefreshCw, FileText } from "lucide-react";
+import { Group, SupabaseConfig } from "../types";
+import { buildSqlSchema, checkSupabaseConnection } from "../utils/supabaseClient";
 
 interface SupabaseConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentConfig: SupabaseConfig | null;
+  groups: Group[];
   onSaveConfig: (config: SupabaseConfig | null) => void;
 }
 
@@ -14,6 +15,7 @@ export default function SupabaseConfigModal({
   isOpen,
   onClose,
   currentConfig,
+  groups,
   onSaveConfig,
 }: SupabaseConfigModalProps) {
   const [url, setUrl] = useState(currentConfig?.url || "");
@@ -22,6 +24,7 @@ export default function SupabaseConfigModal({
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<"none" | "success" | "error">("none");
   const [copied, setCopied] = useState(false);
+  const sqlSchema = buildSqlSchema(groups);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,7 +69,7 @@ export default function SupabaseConfigModal({
   };
 
   const handleCopySql = () => {
-    navigator.clipboard.writeText(SQL_SCHEMA);
+    navigator.clipboard.writeText(sqlSchema);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -104,7 +107,7 @@ export default function SupabaseConfigModal({
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm text-slate-600">
             <p className="font-sans leading-relaxed">
               โดยปกติแล้ว ระบบนี้จะจัดเก็บข้อมูลจำลองไว้ในเครื่องคอมพิวเตอร์ของคุณ (<span className="font-semibold text-slate-800">Local Database</span>) 
-              คุณสามารถเชื่อมโยงปฏิทินนี้เข้ากับบัญชี <span className="font-semibold text-emerald-600">Supabase</span> ของตนเองได้ง่าย ๆ เพื่อบันทึกข้อมูลอย่างถาวรและใช้งานร่วมกับผู้อื่น
+              คุณสามารถเชื่อมโยงปฏิทินนี้เข้ากับบัญชี <span className="font-semibold text-emerald-600">Supabase</span> เพื่อบันทึกข้อมูลถาวร ใช้ Supabase Auth และควบคุมสิทธิ์ด้วย RLS
             </p>
           </div>
 
@@ -236,12 +239,12 @@ export default function SupabaseConfigModal({
                 <span className="text-[10px] uppercase font-sans tracking-wider bg-slate-800 text-slate-300 px-2 py-0.5 rounded">PostgreSQL</span>
               </div>
               <div className="p-4 max-h-[220px] overflow-y-auto whitespace-pre scrolling-touch leading-relaxed">
-                {SQL_SCHEMA}
+                {sqlSchema}
               </div>
             </div>
 
             <p className="text-xs text-slate-500 leading-relaxed font-sans">
-              💡 <span className="font-semibold">วิธีทำ:</span> ไปที่ Supabase Dashboard &gt; เลือกโปรเจกต์ของคุณ &gt; ไปที่เมนู <span className="font-medium">SQL Editor</span> &gt; คลิก <span className="font-medium">+ New query</span> &gt; วางสคริปต์ SQL ด้านบนลงไปแล้วคลิกปุ่ม <span className="font-semibold text-slate-700">Run</span>
+              วิธีทำ: รัน SQL นี้ใน Supabase SQL Editor จากนั้นสร้างผู้ใช้ใน Authentication และเพิ่มแถวในตาราง profiles เพื่อกำหนด role เป็น admin หรือ officer ก่อนเริ่มแก้ไขข้อมูล
             </p>
           </div>
 

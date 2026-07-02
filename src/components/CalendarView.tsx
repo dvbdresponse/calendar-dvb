@@ -22,6 +22,7 @@ interface CalendarViewProps {
   onToggleGroupFilter: (groupId: string) => void;
   onClearFilters: () => void;
   isLoggedIn: boolean;
+  canManageEvent?: (event: EventData) => boolean;
 }
 
 export default function CalendarView({
@@ -35,6 +36,7 @@ export default function CalendarView({
   onToggleGroupFilter,
   onClearFilters,
   isLoggedIn,
+  canManageEvent = () => true,
 }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"calendar" | "agenda">("calendar");
@@ -219,6 +221,10 @@ export default function CalendarView({
   const totalHolidaysCount = holidayAgendaItems.reduce((acc, item) => acc + item.dayHolidays.length, 0);
 
   const activeAgendaLength = agendaSubTab === "meetings" ? totalMeetingsCount : totalHolidaysCount;
+  const canManageHoliday = (holiday: UnifiedHoliday) => {
+    const originalEvent = holiday.id ? events.find(e => e.id === holiday.id) : undefined;
+    return !!originalEvent && canManageEvent(originalEvent);
+  };
 
   return (
     <div className="space-y-6">
@@ -788,7 +794,7 @@ export default function CalendarView({
                                     </a>
                                   )}
                                   
-                                  {isLoggedIn && (
+                                  {isLoggedIn && canManageEvent(evt) && (
                                     <div className="flex items-center gap-1.5 w-full">
                                       <button
                                         id={`agenda-edit-event-${evt.id}-btn`}
@@ -896,7 +902,7 @@ export default function CalendarView({
                               </div>
 
                               {/* Custom holiday controls */}
-                              {!h.isOfficial && isLoggedIn && h.id && (
+                              {!h.isOfficial && isLoggedIn && h.id && canManageHoliday(h) && (
                                 <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                                   <button
                                     type="button"
@@ -1071,7 +1077,7 @@ export default function CalendarView({
                   </div>
 
                   {/* Actions right buttons */}
-                  {isLoggedIn && (
+                  {isLoggedIn && canManageEvent(evt) && (
                     <div className="flex items-center justify-end gap-1.5 shrink-0 md:border-l md:border-slate-100 md:pl-3.5">
                       <button
                         id={`edit-event-${evt.id}-btn`}

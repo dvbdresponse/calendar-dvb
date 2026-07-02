@@ -6,6 +6,8 @@ export interface Group {
   bgColor: string; // Light background tailwind class or hex
   textColor: string; // Dark text tailwind class or hex
   borderColor: string; // Border color class or hex
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface EventData {
@@ -22,7 +24,9 @@ export interface EventData {
   online_platform?: string;
   is_holiday: boolean;
   created_by: string;
+  created_by_user_id?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Holiday {
@@ -37,8 +41,9 @@ export interface SupabaseConfig {
 }
 
 export interface UserSession {
+  id: string;
   username: string;
   role: "admin" | "officer";
   name: string;
+  email?: string;
 }
-

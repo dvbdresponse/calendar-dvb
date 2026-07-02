@@ -1,70 +1,58 @@
 import React, { useState } from "react";
-import { X, Lock, User, Shield, AlertCircle, Sparkles, KeyRound } from "lucide-react";
-import { UserSession } from "../types";
+import { AlertCircle, KeyRound, Lock, Mail, Shield, X } from "lucide-react";
 import LordIcon from "./LordIcon";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (session: UserSession) => void;
+  onLogin: (email: string, password: string) => Promise<void>;
 }
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
-  const [username, setUsername] = useState("");
+const toThaiAuthError = (message: string) => {
+  if (message.toLowerCase().includes("invalid login")) {
+    return "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+  }
+  if (message.toLowerCase().includes("email not confirmed")) {
+    return "บัญชีนี้ยังไม่ได้ยืนยันอีเมล";
+  }
+  return message || "เข้าสู่ระบบไม่สำเร็จ";
+};
+
+export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsLoading(true);
 
-    // Simulate database network delay
-    setTimeout(() => {
-      if (!username.trim() || !password.trim()) {
-        setError("กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
-        setIsLoading(false);
-        return;
-      }
+    if (!email.trim() || !password.trim()) {
+      setError("กรุณากรอกอีเมลและรหัสผ่าน");
+      return;
+    }
 
-      // Hardcoded sample accounts for Gov office simulation
-      if (username === "admin" && password === "password") {
-        onLoginSuccess({
-          username: "admin",
-          role: "admin",
-          name: "ผู้ดูแลระบบกลาง (Admin)"
-        });
-        setIsLoading(false);
-        onClose();
-      } else {
-        setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (บัญชีจำลอง: admin/password)");
-        setIsLoading(false);
-      }
-    }, 600);
-  };
-
-  const handleQuickLogin = (role: "admin") => {
-    setUsername(role);
-    setPassword("password");
-    setError(null);
+    try {
+      setIsLoading(true);
+      await onLogin(email.trim(), password);
+      setPassword("");
+      onClose();
+    } catch (e: any) {
+      setError(toThaiAuthError(e.message));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto font-sans">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
-      {/* Modal Wrapper */}
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 transition-all">
-          
-          {/* Close button */}
           <button
             id="close-login-modal-btn"
             type="button"
@@ -74,55 +62,48 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             <X className="w-4 h-4" />
           </button>
 
-          {/* Icon Header */}
           <div className="flex flex-col items-center text-center mt-2 mb-6">
             <div className="p-3 bg-red-50 text-red-600 rounded-2xl mb-3 border border-red-100">
-              <LordIcon 
-                src="https://cdn.lordicon.com/lyvznjgu.json" 
-                colors="primary:#dc2626,secondary:#f87171" 
-                size={40} 
-                trigger="loop" 
+              <LordIcon
+                src="https://cdn.lordicon.com/lyvznjgu.json"
+                colors="primary:#dc2626,secondary:#f87171"
+                size={40}
+                trigger="loop"
               />
             </div>
-            <h3 className="text-base font-bold text-slate-800">
-              เข้าสู่ระบบบริหารจัดการปฏิทินงาน
-            </h3>
+            <h3 className="text-base font-bold text-slate-800">เข้าสู่ระบบด้วย Supabase Auth</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-              สำหรับเจ้าหน้าที่ควบคุมเครื่องดื่มแอลกอฮอล์เพื่อเพิ่ม แก้ไข หรือลบวาระงานประชุม
+              ใช้บัญชีที่สร้างใน Supabase Authentication และมีแถว profile เพื่อกำหนดสิทธิ์ admin/officer
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
-            
-            {/* Username Input */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                ชื่อผู้ใช้งาน (Username)
+                อีเมลผู้ใช้งาน
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-2.5 text-slate-400 pointer-events-none">
-                  <User className="w-4 h-4" />
+                  <Mail className="w-4 h-4" />
                 </div>
                 <input
-                  id="login-username-input"
-                  type="text"
-                  value={username}
+                  id="login-email-input"
+                  type="email"
+                  value={email}
                   onChange={(e) => {
-                    setUsername(e.target.value);
+                    setEmail(e.target.value);
                     setError(null);
                   }}
-                  placeholder="เช่น admin"
+                  placeholder="name@example.go.th"
                   className="w-full text-xs pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/30 hover:bg-slate-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all"
                   required
                 />
               </div>
             </div>
 
-            {/* Password Input */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                รหัสผ่าน (Password)
+                รหัสผ่าน
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-2.5 text-slate-400 pointer-events-none">
@@ -136,14 +117,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     setPassword(e.target.value);
                     setError(null);
                   }}
-                  placeholder="กรอกรหัสผ่าน"
+                  placeholder="กรอกรหัสผ่าน Supabase"
                   className="w-full text-xs pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/30 hover:bg-slate-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all"
                   required
                 />
               </div>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2.5 text-red-700 text-xs">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -151,7 +131,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               </div>
             )}
 
-            {/* Submit Button */}
             <button
               id="submit-login-btn"
               type="submit"
@@ -169,28 +148,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </button>
           </form>
 
-          {/* Quick simulation accounts (Aesthetic & Highly functional) */}
           <div className="mt-6 pt-5 border-t border-slate-100">
-            <div className="flex items-center gap-1 mb-2.5 text-slate-500">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">บัญชีจำลองผู้ใช้งานพิเศษ (Quick Logins)</span>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                id="quick-login-admin-btn"
-                type="button"
-                onClick={() => handleQuickLogin("admin")}
-                className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-white text-left text-xs text-slate-700 transition-all cursor-pointer"
-              >
-                <Shield className="w-4 h-4 text-indigo-500 shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-bold text-[10px] text-slate-800 leading-tight">Admin (ผู้ดูแลระบบ)</p>
-                  <p className="text-[9px] text-slate-400 truncate">admin / password</p>
-                </div>
-              </button>
+            <div className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+              <Shield className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                ระบบนี้ไม่มีบัญชีจำลองแล้ว สิทธิ์แก้ไขข้อมูลมาจาก Supabase RLS และ role ในตาราง profiles เท่านั้น
+              </p>
             </div>
           </div>
-
         </div>
       </div>
     </div>
