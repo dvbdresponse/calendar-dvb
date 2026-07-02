@@ -195,18 +195,24 @@ export default function Header({
                 <span className="font-sans whitespace-nowrap">ตั้งค่าฐานข้อมูล</span>
               </button>
 
+              <button
+                onClick={onOpenGroupManagerModal}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0 ${
+                  canManageGroups
+                    ? "border-slate-200 hover:border-slate-300 text-slate-700"
+                    : "border-slate-200 text-slate-400 hover:border-indigo-200"
+                }`}
+                title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "ต้องเป็นผู้ดูแลระบบจึงจะแก้ไขกลุ่มงานได้"}
+              >
+                <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-400"}`} />
+                <span className={`font-sans whitespace-nowrap ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
+                  จัดการกลุ่ม
+                </span>
+              </button>
+
               {/* Create new event button (Only visible to logged in users) */}
               {canCreateEvent && (
                 <div className="flex items-center gap-2 shrink-0">
-                  {canManageGroups && (
-                    <button
-                      onClick={onOpenGroupManagerModal}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0"
-                    >
-                      <Tag className="w-4 h-4 text-indigo-600 shrink-0" />
-                      <span className="font-sans text-indigo-600 whitespace-nowrap">จัดการกลุ่ม</span>
-                    </button>
-                  )}
                   <button
                     id="open-add-event-btn-desktop"
                     type="button"
@@ -268,6 +274,20 @@ export default function Header({
                   </div>
                 ) : null}
 
+                <button
+                  onClick={() => { onOpenGroupManagerModal(); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center gap-2 w-full px-3 py-2 border rounded-xl bg-white text-sm font-semibold transition-all hover:bg-slate-50 ${
+                    canManageGroups
+                      ? "border-slate-200 hover:border-slate-300 text-slate-700"
+                      : "border-slate-200 hover:border-indigo-200 text-slate-500"
+                  }`}
+                >
+                  <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-400"}`} />
+                  <span className={`font-sans ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
+                    จัดการกลุ่ม
+                  </span>
+                </button>
+
                 {canCreateEvent && (
                   <>
                     <button
@@ -284,16 +304,6 @@ export default function Header({
                       />
                       <span className="font-sans">เพิ่มกิจกรรม</span>
                     </button>
-
-                    {canManageGroups && (
-                      <button
-                        onClick={() => { onOpenGroupManagerModal(); setIsMobileMenuOpen(false); }}
-                        className="flex items-center gap-2 w-full px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-sm font-semibold transition-all hover:bg-slate-50"
-                      >
-                        <Tag className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <span className="font-sans text-indigo-600">จัดการกลุ่ม</span>
-                      </button>
-                    )}
                   </>
                 )}
 
