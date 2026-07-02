@@ -147,8 +147,8 @@ const groupValues = (groups: Group[]) =>
     })
     .join(",\n");
 
-export const buildSqlSchema = (groups: Group[]) => `-- Secure setup for the government calendar app.
--- Run this in Supabase SQL Editor, then create users in Authentication and add matching profile rows.
+export const buildSqlSchema = (groups: Group[]) => `-- Secure setup for ALC Calendar.
+-- Run this in Supabase SQL Editor, then create users in Authentication.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -262,10 +262,11 @@ CREATE POLICY "Groups are publicly readable" ON public.groups
   FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Admins manage groups" ON public.groups;
-CREATE POLICY "Admins manage groups" ON public.groups
+DROP POLICY IF EXISTS "Authenticated users manage groups" ON public.groups;
+CREATE POLICY "Authenticated users manage groups" ON public.groups
   FOR ALL TO authenticated
-  USING (public.current_user_role() = 'admin')
-  WITH CHECK (public.current_user_role() = 'admin');
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Events are publicly readable" ON public.events;
 CREATE POLICY "Events are publicly readable" ON public.events
@@ -277,17 +278,20 @@ CREATE POLICY "Authenticated users create events" ON public.events
   WITH CHECK (created_by_user_id = auth.uid());
 
 DROP POLICY IF EXISTS "Owners and admins update events" ON public.events;
-CREATE POLICY "Owners and admins update events" ON public.events
+DROP POLICY IF EXISTS "Authenticated users update events" ON public.events;
+CREATE POLICY "Authenticated users update events" ON public.events
   FOR UPDATE TO authenticated
-  USING (created_by_user_id = auth.uid() OR public.current_user_role() = 'admin')
-  WITH CHECK (created_by_user_id = auth.uid() OR public.current_user_role() = 'admin');
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Owners and admins delete events" ON public.events;
-CREATE POLICY "Owners and admins delete events" ON public.events
+DROP POLICY IF EXISTS "Authenticated users delete events" ON public.events;
+CREATE POLICY "Authenticated users delete events" ON public.events
   FOR DELETE TO authenticated
-  USING (created_by_user_id = auth.uid() OR public.current_user_role() = 'admin');
+  USING (auth.uid() IS NOT NULL);
 
--- After creating Supabase Auth users, grant app access with profile rows like:
+-- Profile rows are optional for display names and labels. Authenticated users can edit calendar data.
+-- Example profile row:
 -- INSERT INTO public.profiles (id, email, display_name, role)
--- VALUES ('USER_UUID_FROM_AUTH_USERS', 'admin@example.go.th', 'ผู้ดูแลระบบกลาง', 'admin');
+-- VALUES ('USER_UUID_FROM_AUTH_USERS', 'user@example.go.th', 'เจ้าหน้าที่ ALC', 'officer');
 `;

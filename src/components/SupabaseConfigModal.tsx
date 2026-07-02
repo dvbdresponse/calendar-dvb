@@ -244,7 +244,7 @@ export default function SupabaseConfigModal({
             </div>
 
             <p className="text-xs text-slate-500 leading-relaxed font-sans">
-              วิธีทำ: รัน SQL นี้ใน Supabase SQL Editor จากนั้นสร้างผู้ใช้ใน Authentication และเพิ่มแถวในตาราง profiles เพื่อกำหนด role เป็น admin หรือ officer ก่อนเริ่มแก้ไขข้อมูล
+              วิธีทำ: รัน SQL นี้ใน Supabase SQL Editor จากนั้นสร้างผู้ใช้ใน Authentication ผู้ที่เข้าสู่ระบบแล้วจะสามารถแก้ไขข้อมูลได้ทันที ส่วนตาราง profiles ใช้เสริมชื่อแสดงผลเท่านั้น
             </p>
           </div>
 

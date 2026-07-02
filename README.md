@@ -1,8 +1,8 @@
-# Government Meeting Calendar
+# ALC Calendar
 
 React + Vite calendar app for office meeting schedules. The app supports two modes:
 
-- Local demo mode: stores events and groups in the browser with `localStorage`.
+- Local demo mode: shows browser sample data for preview.
 - Supabase mode: reads public calendar data from Supabase and requires Supabase Auth for create, update, delete, and group management.
 
 ## Run Locally
@@ -33,21 +33,16 @@ React + Vite calendar app for office meeting schedules. The app supports two mod
 2. Copy the SQL schema from the Supabase setup modal.
 3. Run it in Supabase SQL Editor.
 4. Create users in Supabase Authentication.
-5. Add one row per user in `public.profiles`.
+5. Optional: add rows in `public.profiles` for better display names.
 
 Example profile row:
 
 ```sql
 INSERT INTO public.profiles (id, email, display_name, role)
-VALUES ('USER_UUID_FROM_AUTH_USERS', 'admin@example.go.th', 'ผู้ดูแลระบบกลาง', 'admin');
+VALUES ('USER_UUID_FROM_AUTH_USERS', 'user@example.go.th', 'เจ้าหน้าที่ ALC', 'officer');
 ```
 
-Supported roles:
-
-- `admin`: manage all events and groups.
-- `officer`: create events and manage only events they created.
-
-The SQL enables RLS. Calendar events and groups are publicly readable, but writes require an authenticated user and are checked by owner/admin policies.
+The SQL enables RLS. Calendar events and groups are publicly readable. Creating, updating, deleting, and managing groups require a signed-in Supabase Auth user.
 
 ## Checks
 

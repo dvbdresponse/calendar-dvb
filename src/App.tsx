@@ -92,7 +92,7 @@ export default function App() {
 
   const isSupabaseMode = hasValidSupabaseConfig(supabaseConfig);
   const canCreateEvent = isSupabaseMode && !!user;
-  const canManageGroups = isSupabaseMode && user?.role === "admin";
+  const canManageGroups = isSupabaseMode && !!user;
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info" = "success") => {
     const id = Math.random().toString(36).slice(2, 11);
@@ -212,15 +212,11 @@ export default function App() {
       setIsLoginModalOpen(true);
       return false;
     }
-    if (event && user.role !== "admin" && event.created_by_user_id !== user.id) {
-      showToast("บัญชีนี้แก้ไขหรือลบได้เฉพาะรายการที่ตนเองสร้าง", "error");
-      return false;
-    }
     return true;
   };
 
   const canManageEvent = useCallback((event: EventData) => {
-    return !!user && (user.role === "admin" || event.created_by_user_id === user.id);
+    return !!user;
   }, [user]);
 
   const validateEventPayload = (formData: Omit<EventData, "id" | "created_at"> & { id?: string }) => {
@@ -381,7 +377,7 @@ export default function App() {
 
   const handleAddGroup = async (newGroup: Group) => {
     if (!canManageGroups) {
-      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
+      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth เพื่อจัดการกลุ่มงาน", "error");
       return;
     }
 
@@ -406,7 +402,7 @@ export default function App() {
 
   const handleUpdateGroup = async (updatedGroup: Group) => {
     if (!canManageGroups) {
-      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
+      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth เพื่อจัดการกลุ่มงาน", "error");
       return;
     }
 
@@ -431,7 +427,7 @@ export default function App() {
 
   const handleDeleteGroup = async (groupId: string) => {
     if (!canManageGroups) {
-      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
+      showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth เพื่อจัดการกลุ่มงาน", "error");
       return;
     }
     if (events.some((event) => event.group_id === groupId)) {
@@ -502,7 +498,7 @@ export default function App() {
               showToast("ต้องเชื่อมต่อ Supabase ก่อนจัดการกลุ่มงาน", "error");
               setIsSupabaseModalOpen(true);
             } else {
-              showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth ด้วยสิทธิ์ admin เพื่อจัดการกลุ่มงาน", "error");
+              showToast("ต้องเข้าสู่ระบบผ่าน Supabase Auth เพื่อจัดการกลุ่มงาน", "error");
               if (!user) setIsLoginModalOpen(true);
             }
             return;
@@ -574,7 +570,7 @@ export default function App() {
           <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-sky-800 font-sans">อ่านปฏิทินได้แบบสาธารณะ</p>
-              <p className="text-xs text-sky-600 font-sans mt-0.5">การเพิ่ม แก้ไข หรือลบข้อมูลต้องเข้าสู่ระบบด้วยบัญชี Supabase ที่มี profile แล้ว</p>
+              <p className="text-xs text-sky-600 font-sans mt-0.5">การเพิ่ม แก้ไข หรือลบข้อมูลต้องเข้าสู่ระบบด้วยบัญชี Supabase Auth</p>
             </div>
             <button
               type="button"

@@ -73,7 +73,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             </div>
             <h3 className="text-base font-bold text-slate-800">เข้าสู่ระบบด้วย Supabase Auth</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-              ใช้บัญชีที่สร้างใน Supabase Authentication และมีแถว profile เพื่อกำหนดสิทธิ์ admin/officer
+              ใช้บัญชีที่สร้างใน Supabase Authentication เพื่อเพิ่ม แก้ไข หรือลบข้อมูลใน ALC Calendar
             </p>
           </div>
 
@@ -152,7 +152,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             <div className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
               <Shield className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                ระบบนี้ไม่มีบัญชีจำลองแล้ว สิทธิ์แก้ไขข้อมูลมาจาก Supabase RLS และ role ในตาราง profiles เท่านั้น
+                ระบบนี้ไม่มีบัญชีจำลองแล้ว ผู้ที่เข้าสู่ระบบผ่าน Supabase Auth จะสามารถแก้ไขข้อมูลได้ตามนโยบาย RLS
               </p>
             </div>
           </div>
