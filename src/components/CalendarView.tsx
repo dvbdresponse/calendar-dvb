@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { THAI_HOLIDAYS_2026 } from "../data/constants";
+import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 
 interface UnifiedHoliday {
   name: string;
@@ -256,6 +257,7 @@ export default function CalendarView({
               {groups.map((group) => {
                 const isActive = activeGroupFilters.includes(group.id);
                 const count = getGroupEventCount(group.id);
+                const palette = getGroupPalette(group.color);
                 return (
                   <button
                     id={`filter-group-${group.id}-btn`}
@@ -263,13 +265,14 @@ export default function CalendarView({
                     onClick={() => onToggleGroupFilter(group.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${
                       activeGroupFilters.length === 0 || isActive
-                        ? `${group.bgColor} ${group.textColor} ${group.borderColor} shadow-sm font-semibold scale-[1.01]`
+                        ? "shadow-sm font-semibold scale-[1.01]"
                         : "bg-slate-50 border-slate-200 text-slate-400 opacity-60 hover:opacity-100 font-medium"
                     }`}
+                    style={activeGroupFilters.length === 0 || isActive ? getGroupBadgeStyle(group) : undefined}
                   >
                     <span 
                       className="w-2 h-2 rounded-full shrink-0" 
-                      style={{ backgroundColor: group.color }}
+                      style={{ backgroundColor: palette.color }}
                     />
                     <span className="font-sans">{group.name}</span>
                     <span className="px-1.5 py-0.25 bg-white/70 rounded-full text-[10px] font-mono font-semibold">
@@ -510,9 +513,8 @@ export default function CalendarView({
                               key={evt.id}
                               className={`group/pill text-[10px] leading-snug px-1.5 py-0.5 border flex items-center gap-1 transition-all ${
                                 !isMultiDay ? "hover:translate-x-0.5" : "relative z-10"
-                              } ${widthClasses} ${
-                                group ? `${group.bgColor} ${group.textColor} ${group.borderColor}` : "bg-slate-50 border-slate-200 text-slate-700"
-                              }`}
+                              } ${widthClasses} ${group ? "" : "bg-slate-50 border-slate-200 text-slate-700"}`}
+                              style={group ? getGroupBadgeStyle(group) : undefined}
                               title={evt.start_time ? `${evt.start_time} - ${evt.title}` : `ตลอดทั้งวัน - ${evt.title}`}
                             >
                               {showContent ? (
@@ -596,7 +598,7 @@ export default function CalendarView({
                             <span 
                               key={evt.id} 
                               className="w-1 h-1 rounded-full shrink-0" 
-                              style={{ backgroundColor: group?.color || "#cbd5e1" }}
+                              style={{ backgroundColor: getGroupPalette(group?.color).color }}
                             />
                           );
                         })}
@@ -694,9 +696,9 @@ export default function CalendarView({
                               <div
                                 key={evt.id}
                                 className={`flex flex-col md:flex-row md:items-start justify-between gap-4 p-4 rounded-xl border transition-all duration-150 relative bg-white ${
-                                  group ? `hover:shadow-sm/5 border-l-4 ${group.borderColor}` : "border-slate-100"
+                                  group ? "hover:shadow-sm/5 border-l-4" : "border-slate-100"
                                 }`}
-                                style={{ borderLeftColor: group?.color }}
+                                style={group ? { borderLeftColor: getGroupPalette(group.color).color } : undefined}
                               >
                                 <div className="space-y-2 flex-1 min-w-0">
                                   {/* Badges line */}
@@ -720,7 +722,7 @@ export default function CalendarView({
                                     )}
                                     
                                     {group && (
-                                      <span className={`font-bold px-2 py-0.5 rounded-md border text-[11px] ${group.bgColor} ${group.textColor} ${group.borderColor}`}>
+                                      <span className="font-bold px-2 py-0.5 rounded-md border text-[11px]" style={getGroupBadgeStyle(group)}>
                                         {group.name}
                                       </span>
                                     )}
@@ -955,7 +957,7 @@ export default function CalendarView({
                   {/* Left block: Minimalist Accent color line */}
                   <div 
                     className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-full" 
-                    style={{ backgroundColor: group?.color || "#94a3b8" }}
+                    style={{ backgroundColor: getGroupPalette(group?.color).color }}
                   />
 
                   {/* Middle content */}
@@ -973,9 +975,10 @@ export default function CalendarView({
                       )}
 
                       {/* Group label */}
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase ${
-                        group ? `${group.bgColor} ${group.textColor} ${group.borderColor}` : "bg-slate-50 border-slate-100 text-slate-500"
-                      }`}>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase ${group ? "" : "bg-slate-50 border-slate-100 text-slate-500"}`}
+                        style={group ? getGroupBadgeStyle(group) : undefined}
+                      >
                         {group?.name || "ไม่ระบุฝ่าย"}
                       </span>
 

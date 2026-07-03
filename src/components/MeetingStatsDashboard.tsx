@@ -22,6 +22,7 @@ import {
   Award
 } from "lucide-react";
 import { EventData, Group } from "../types";
+import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 
 interface MeetingStatsDashboardProps {
   events: EventData[];
@@ -71,9 +72,6 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
         label: busiestGroup.label,
         color: busiestGroup.color,
         count: maxCount,
-        bgColor: busiestGroup.bgColor,
-        textColor: busiestGroup.textColor,
-        borderColor: busiestGroup.borderColor
       } : null
     };
   }, [actualMeetings]);
@@ -276,7 +274,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                     <p className="text-[14px] font-bold text-slate-800 font-sans truncate" title={stats.busiestGroup.name}>
                       {stats.busiestGroup.name}
                     </p>
-                    <span className={`inline-block font-bold px-2 py-0.5 rounded text-[10px] border mt-1 ${stats.busiestGroup.bgColor} ${stats.busiestGroup.textColor} ${stats.busiestGroup.borderColor}`}>
+                    <span className="inline-block font-bold px-2 py-0.5 rounded text-[10px] border mt-1" style={getGroupBadgeStyle(stats.busiestGroup)}>
                       {stats.busiestGroup.label} — {stats.busiestGroup.count} ครั้ง
                     </span>
                   </>
@@ -412,7 +410,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                             className="h-full rounded-full transition-all duration-500"
                             style={{ 
                               width: `${percent}%`,
-                              backgroundColor: g.color
+                              backgroundColor: getGroupPalette(g.color).color
                             }}
                           />
                         </div>
