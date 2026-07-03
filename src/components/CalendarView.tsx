@@ -446,7 +446,7 @@ export default function CalendarView({
                       key={`${cell.dateStr}-${idx}`}
                       onClick={() => onSelectDate(cell.dateStr)}
                       style={{ zIndex: 100 - idx }}
-                      className={`min-h-[110px] p-2 bg-white transition-all cursor-pointer relative hover:bg-slate-50/50 flex flex-col justify-between group ${
+                      className={`min-h-[110px] p-2 bg-white transition-all cursor-pointer relative hover:bg-slate-50/50 hover:!z-[150] flex flex-col justify-between group ${
                         !cell.isCurrentMonth ? "opacity-30" : ""
                       } ${
                         isSelected ? "ring-2 ring-red-500/10 bg-red-50/5 z-10" : ""
@@ -511,28 +511,101 @@ export default function CalendarView({
                           return (
                             <div
                               key={evt.id}
-                              className={`group/pill text-[10px] leading-snug px-1.5 py-0.5 border flex items-center gap-1 transition-all ${
-                                !isMultiDay ? "hover:translate-x-0.5" : "relative z-10"
+                              className={`group/pill text-[10px] leading-snug px-1.5 py-0.5 border flex ${
+                                isMultiDay ? "items-center" : "items-start"
+                              } gap-1 transition-all relative hover:z-50 ${
+                                !isMultiDay ? "hover:translate-x-0.5" : "z-10"
                               } ${widthClasses} ${group ? "" : "bg-slate-50 border-slate-200 text-slate-700"}`}
                               style={group ? getGroupBadgeStyle(group) : undefined}
-                              title={evt.start_time ? `${evt.start_time} - ${evt.title}` : `ตลอดทั้งวัน - ${evt.title}`}
                             >
                               {showContent ? (
-                                <>
-                                  {evt.start_time && (
-                                    <span className="font-semibold shrink-0 font-sans">{evt.start_time}</span>
-                                  )}
-                                  <span className="font-semibold px-0.5 bg-white/65 rounded text-[8px] uppercase shrink-0">
-                                    {group?.label || "อื่น ๆ"}
-                                  </span>
-                                  <span className={`${isMultiDay ? "whitespace-nowrap overflow-visible z-20 pointer-events-none" : "truncate"} flex-1 text-left font-sans`}>{evt.title}</span>
-                                  {evt.is_online && (
-                                    <Video className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                                  )}
-                                </>
+                                isMultiDay ? (
+                                  <>
+                                    {evt.start_time && (
+                                      <span className="font-semibold shrink-0 font-sans">{evt.start_time}</span>
+                                    )}
+                                    <span className="font-semibold px-0.5 bg-white/65 rounded text-[8px] uppercase shrink-0">
+                                      {group?.label || "อื่น ๆ"}
+                                    </span>
+                                    <span className="whitespace-nowrap overflow-visible z-20 pointer-events-none flex-1 text-left font-sans">{evt.title}</span>
+                                    {evt.is_online && (
+                                      <Video className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="flex-1 text-left font-sans line-clamp-2 break-words">
+                                    {evt.start_time && (
+                                      <span className="font-semibold mr-1 font-sans">{evt.start_time}</span>
+                                    )}
+                                    <span className="font-semibold px-0.5 bg-white/65 rounded text-[8.5px] uppercase mr-1 inline-block align-[0.5px]">
+                                      {group?.label || "อื่น ๆ"}
+                                    </span>
+                                    <span>{evt.title}</span>
+                                    {evt.is_online && (
+                                      <Video className="w-2.5 h-2.5 inline-block ml-1 align-[-1.5px] opacity-80" />
+                                    )}
+                                  </div>
+                                )
                               ) : (
-                                <span className="opacity-0 select-none flex-1 font-sans truncate min-w-0 pointer-events-none">{evt.title}</span>
+                                <span className={`opacity-0 select-none flex-1 font-sans ${isMultiDay ? "truncate" : "line-clamp-2 break-words"} min-w-0 pointer-events-none`}>{evt.title}</span>
                               )}
+
+                              {/* Premium Popover Tooltip Card */}
+                              <div
+                                className={`absolute bottom-full mb-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 z-50 text-slate-800 text-[11px] text-left hidden group-hover/pill:block pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150 ${
+                                  (idx % 7) <= 1 
+                                    ? "left-0 origin-bottom-left" 
+                                    : (idx % 7) >= 5 
+                                      ? "right-0 origin-bottom-right" 
+                                      : "left-1/2 -translate-x-1/2 origin-bottom"
+                                }`}
+                              >
+                                {/* Title and Online Badge */}
+                                <div className="font-bold text-slate-900 leading-snug mb-2 font-sans border-b border-slate-105 pb-1.5 break-words flex items-start justify-between gap-1.5">
+                                  <span className="flex-1 text-[12px]">{evt.title}</span>
+                                  {evt.is_online && (
+                                    <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-100 font-bold uppercase shrink-0">
+                                      Online
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Details List */}
+                                <div className="space-y-2 font-semibold font-sans text-slate-600">
+                                  {/* Time */}
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>
+                                      {evt.start_time ? `${evt.start_time} - ${evt.end_time || ""} น.` : "ตลอดทั้งวัน"}
+                                    </span>
+                                  </div>
+
+                                  {/* Group */}
+                                  <div className="flex items-center gap-2">
+                                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>
+                                      {group ? `${group.name} (${group.label})` : "อื่น ๆ"}
+                                    </span>
+                                  </div>
+
+                                  {/* Location */}
+                                  {(evt.location || evt.online_platform) && (
+                                    <div className="flex items-start gap-2">
+                                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                      <span className="break-all">
+                                        {evt.location} {evt.online_platform && `(${evt.online_platform.toUpperCase()})`}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Description */}
+                                  {evt.description && (
+                                    <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-normal leading-relaxed break-words">
+                                      {evt.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           );
                         })}
