@@ -93,19 +93,30 @@ export const getUserProfile = async (
 ): Promise<UserSession | null> => {
   if (!session?.user) return null;
 
-  const { data, error } = await client
-    .from("profiles")
-    .select("id, email, display_name, role")
-    .eq("id", session.user.id)
-    .maybeSingle();
+  let data: { id: string; email: string; display_name: string; role: string } | null = null;
 
-  if (error) throw error;
+  try {
+    const result = await client
+      .from("profiles")
+      .select("id, email, display_name, role")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (result.error) {
+      console.warn("Could not load profile row, using session metadata:", result.error.message);
+    } else {
+      data = result.data;
+    }
+  } catch (e: any) {
+    console.warn("Profiles query failed, using session metadata:", e.message);
+  }
 
   const email = data?.email || session.user.email || "";
   const displayName =
     data?.display_name ||
     session.user.user_metadata?.display_name ||
     session.user.user_metadata?.name ||
+    session.user.user_metadata?.full_name ||
     email ||
     "Supabase user";
 
