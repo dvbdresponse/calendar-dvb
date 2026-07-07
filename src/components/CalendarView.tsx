@@ -2,6 +2,19 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
+import { getOnlineResourceDescription, getOnlineResourceLabel } from "../utils/booking";
+
+const buildMeetingHref = (link?: string) => {
+  if (!link?.trim()) return "";
+  const trimmed = link.trim();
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
+};
+
+const getOnlinePlatformLabel = (platform?: string) => {
+  if (platform === "zoom") return "Zoom";
+  if (platform === "webex") return "Webex";
+  return platform ? "กำหนดเอง" : "";
+};
 
 interface UnifiedHoliday {
   name: string;
@@ -177,6 +190,8 @@ export default function CalendarView({
     return events.filter(e => e.group_id === groupId && !e.is_holiday).length;
   };
 
+  const groupsSortedById = [...groups].sort((a, b) => a.id.localeCompare(b.id));
+
   // Generate all dates in the current month (sorted)
   const getDatesInCurrentMonth = (): string[] => {
     const dates: string[] = [];
@@ -239,7 +254,7 @@ export default function CalendarView({
 
             {/* Legend buttons */}
             <div className="flex flex-wrap gap-2">
-              {groups.map((group) => {
+              {groupsSortedById.map((group) => {
                 const isActive = activeGroupFilters.includes(group.id);
                 const count = getGroupEventCount(group.id);
                 const palette = getGroupPalette(group.color);
@@ -574,11 +589,30 @@ export default function CalendarView({
                                   </div>
 
                                   {/* Location */}
-                                  {(evt.location || evt.online_platform) && (
+                                  {evt.location && (
                                     <div className="flex items-start gap-2">
                                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                                       <span className="break-all">
-                                        {evt.location} {evt.online_platform && `(${evt.online_platform.toUpperCase()})`}
+                                        {evt.location}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {evt.is_online && evt.online_link && (
+                                    <div className="flex items-start gap-2">
+                                      <Video className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                      <span className="break-all">
+                                        {evt.online_link}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {evt.is_online && evt.online_resource && (
+                                    <div className="flex items-start gap-2">
+                                      <Video className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                                      <span className="break-all">
+                                        จอง {getOnlineResourceLabel(evt.online_resource)}
+                                        {getOnlineResourceDescription(evt.online_resource) ? `: ${getOnlineResourceDescription(evt.online_resource)}` : ""}
                                       </span>
                                     </div>
                                   )}
@@ -788,7 +822,7 @@ export default function CalendarView({
                                     {evt.is_online ? (
                                       <span className="font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1 text-[11px]">
                                         <Video className="w-3 h-3 text-emerald-500" />
-                                        ออนไลน์ {evt.online_platform ? `(${evt.online_platform === 'zoom' ? 'Zoom' : evt.online_platform === 'webex' ? 'Webex' : evt.online_platform === 'teams' ? 'Teams' : evt.online_platform === 'meet' ? 'Meet' : 'กำหนดเอง'})` : ''}
+                                        ออนไลน์ {getOnlinePlatformLabel(evt.online_platform) ? `(${getOnlinePlatformLabel(evt.online_platform)})` : ''}
                                       </span>
                                     ) : (
                                       <span className="font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 text-[11px]">
@@ -816,6 +850,21 @@ export default function CalendarView({
                                       <MapPin className="w-3.5 h-3.5" />
                                       สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ได้ระบุสถานที่"}</strong>
                                     </span>
+                                    {evt.is_online && evt.online_link && (
+                                      <span className="flex items-center gap-1">
+                                        <Video className="w-3.5 h-3.5" />
+                                        ลิงก์ออนไลน์: <strong className="text-slate-600 font-medium break-all">{evt.online_link}</strong>
+                                      </span>
+                                    )}
+                                    {evt.is_online && evt.online_resource && (
+                                      <span className="flex items-center gap-1">
+                                        <Video className="w-3.5 h-3.5" />
+                                        จอง {getOnlineResourceLabel(evt.online_resource)}:
+                                        <strong className="text-slate-600 font-medium">
+                                          {getOnlineResourceDescription(evt.online_resource)}
+                                        </strong>
+                                      </span>
+                                    )}
                                     <span className="flex items-center gap-1">
                                       <User className="w-3.5 h-3.5" />
                                       ผู้ลงบันทึก: <strong className="text-slate-600 font-medium">{evt.created_by || "ผู้ดูแลระบบ"}</strong>
@@ -825,9 +874,9 @@ export default function CalendarView({
 
                                 {/* Join Online Meeting link & Actions */}
                                 <div className="flex flex-wrap items-center gap-2 shrink-0 md:border-l md:border-slate-100 md:pl-4 self-stretch justify-end md:flex-col md:justify-center">
-                                  {evt.is_online && evt.location && (evt.location.startsWith("http://") || evt.location.startsWith("https://") || evt.location.startsWith("www.") || evt.location.includes(".com") || evt.location.includes("meet.google.com") || evt.location.includes(".zoom.us")) && (
+                                  {evt.is_online && evt.online_link && (
                                     <a
-                                      href={evt.location.startsWith("http") ? evt.location : `https://${evt.location}`}
+                                      href={buildMeetingHref(evt.online_link)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-colors cursor-pointer shrink-0 w-full animate-pulse animate-duration-1000"
@@ -1069,7 +1118,7 @@ export default function CalendarView({
                       {evt.is_online ? (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-emerald-50/60 text-emerald-700 border border-emerald-100/50 flex items-center gap-1">
                           <Video className="w-3 h-3 text-emerald-600" />
-                          ออนไลน์ {evt.online_platform ? `(${evt.online_platform === 'zoom' ? 'Zoom' : evt.online_platform === 'webex' ? 'Webex' : evt.online_platform === 'teams' ? 'Teams' : evt.online_platform === 'meet' ? 'Meet' : 'กำหนดเอง'})` : ''}
+                          ออนไลน์ {getOnlinePlatformLabel(evt.online_platform) ? `(${getOnlinePlatformLabel(evt.online_platform)})` : ''}
                         </span>
                       ) : (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-indigo-50/60 text-indigo-700 border border-indigo-100/50 flex items-center gap-1">
@@ -1094,6 +1143,19 @@ export default function CalendarView({
                         <MapPin className="w-3 h-3 text-slate-400" />
                         สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ระบุสถานที่"}</strong>
                       </span>
+                      {evt.is_online && evt.online_link && (
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <Video className="w-3 h-3 text-slate-400" />
+                          ลิงก์ออนไลน์: <strong className="text-slate-600 font-medium break-all">{evt.online_link}</strong>
+                        </span>
+                      )}
+                      {evt.is_online && evt.online_resource && (
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <Video className="w-3 h-3 text-slate-400" />
+                          จอง {getOnlineResourceLabel(evt.online_resource)}:
+                          <strong className="text-slate-600 font-medium">{getOnlineResourceDescription(evt.online_resource)}</strong>
+                        </span>
+                      )}
                       <span className="flex items-center gap-1 text-slate-400">
                         <User className="w-3 h-3 text-slate-400" />
                         ผู้ลงบันทึก: <strong className="text-slate-600 font-medium">{evt.created_by || "ผู้ดูแลระบบ"}</strong>

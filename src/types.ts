@@ -22,6 +22,8 @@ export interface EventData {
   location: string;
   is_online: boolean;
   online_platform?: string;
+  online_link?: string;
+  online_resource?: string;
   is_holiday: boolean;
   created_by: string;
   created_by_user_id?: string;

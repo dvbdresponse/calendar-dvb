@@ -19,6 +19,7 @@ import EventFormModal from "./components/EventFormModal";
 import SupabaseConfigModal from "./components/SupabaseConfigModal";
 import LoginModal from "./components/LoginModal";
 import GroupManagerModal from "./components/GroupManagerModal";
+import { findBookingConflict } from "./utils/booking";
 
 const MeetingStatsDashboard = lazy(() => import("./components/MeetingStatsDashboard"));
 
@@ -32,24 +33,43 @@ const getSupabaseHolidaySeedKey = (config: SupabaseConfig) => (
   `${SUPABASE_HOLIDAY_SEED_PREFIX}:${config.url}:${config.tableName || "events"}`
 );
 
-const normalizeEvent = (evt: any): EventData => ({
-  id: evt.id,
-  title: evt.title,
-  description: evt.description || "",
-  date: evt.date,
-  end_date: evt.end_date || undefined,
-  start_time: evt.start_time || "",
-  end_time: evt.end_time || "",
-  group_id: evt.group_id,
-  location: evt.location || "",
-  is_online: evt.is_online === true || evt.is_online === "true",
-  online_platform: evt.online_platform || "",
-  is_holiday: evt.is_holiday === true || evt.is_holiday === "true",
-  created_by: evt.created_by || "ผู้ลงบันทึก",
-  created_by_user_id: evt.created_by_user_id || undefined,
-  created_at: evt.created_at,
-  updated_at: evt.updated_at || undefined,
-});
+const looksLikeOnlineLink = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.startsWith("http://") ||
+    normalized.startsWith("https://") ||
+    normalized.startsWith("www.") ||
+    normalized.includes(".zoom.us") ||
+    normalized.includes("webex.com")
+  );
+};
+
+const normalizeEvent = (evt: any): EventData => {
+  const location = evt.location || "";
+  const isOnline = evt.is_online === true || evt.is_online === "true";
+  const legacyLocationLink = isOnline && !evt.online_link && looksLikeOnlineLink(location);
+
+  return {
+    id: evt.id,
+    title: evt.title,
+    description: evt.description || "",
+    date: evt.date,
+    end_date: evt.end_date || undefined,
+    start_time: evt.start_time || "",
+    end_time: evt.end_time || "",
+    group_id: evt.group_id,
+    location: legacyLocationLink ? "" : location,
+    is_online: isOnline,
+    online_platform: evt.online_platform || "",
+    online_link: evt.online_link || (legacyLocationLink ? location : ""),
+    online_resource: evt.online_resource || "",
+    is_holiday: evt.is_holiday === true || evt.is_holiday === "true",
+    created_by: evt.created_by || "ผู้ลงบันทึก",
+    created_by_user_id: evt.created_by_user_id || undefined,
+    created_at: evt.created_at,
+    updated_at: evt.updated_at || undefined,
+  };
+};
 
 const normalizeGroup = (group: any): Group => ({
   id: group.id,
@@ -94,6 +114,8 @@ const buildHolidaySeedEvents = (existingEvents: EventData[], groupList: Group[])
       location: "",
       is_online: false,
       online_platform: "",
+      online_link: "",
+      online_resource: "",
       is_holiday: true,
       created_by: "ระบบ",
       created_at: new Date().toISOString(),
@@ -111,6 +133,8 @@ const eventToSupabasePayload = (event: Omit<EventData, "id"> & { id?: string }) 
   location: event.location,
   is_online: event.is_online,
   online_platform: event.online_platform || "",
+  online_link: event.online_link || "",
+  online_resource: event.online_resource || "",
   is_holiday: event.is_holiday,
   created_by: event.created_by,
   created_by_user_id: event.created_by_user_id,
@@ -205,6 +229,8 @@ export default function App() {
         nextEvents = MOCK_EVENTS;
       }
 
+      nextEvents = nextEvents.map(normalizeEvent);
+
       if (!localStorage.getItem(LOCAL_HOLIDAY_SEED_KEY)) {
         const seedEvents = buildHolidaySeedEvents(nextEvents, nextGroups);
         nextEvents = [...nextEvents, ...seedEvents];
@@ -217,8 +243,8 @@ export default function App() {
     } catch (e) {
       console.error("Failed to load local storage", e);
       const fallbackEvents = localStorage.getItem(LOCAL_HOLIDAY_SEED_KEY)
-        ? MOCK_EVENTS
-        : [...MOCK_EVENTS, ...buildHolidaySeedEvents(MOCK_EVENTS, INITIAL_GROUPS)];
+        ? MOCK_EVENTS.map(normalizeEvent)
+        : [...MOCK_EVENTS.map(normalizeEvent), ...buildHolidaySeedEvents(MOCK_EVENTS, INITIAL_GROUPS)];
       localStorage.setItem(LOCAL_HOLIDAY_SEED_KEY, "true");
       localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(fallbackEvents));
       setEvents(fallbackEvents);
@@ -343,6 +369,10 @@ export default function App() {
     if (!isMultiDay && (!formData.start_time || !formData.end_time || formData.start_time > formData.end_time)) {
       return "กรุณาตรวจสอบเวลาเริ่มต้นและเวลาสิ้นสุด";
     }
+    const conflict = findBookingConflict(formData as EventData, events);
+    if (conflict) {
+      return `${conflict.resourceName} ถูกจองแล้วในช่วงเวลาเดียวกัน: ${conflict.event.title}`;
+    }
     return null;
   };
 
@@ -401,6 +431,8 @@ export default function App() {
           location: formData.location,
           is_online: formData.is_online,
           online_platform: formData.online_platform || "",
+          online_link: formData.online_link || "",
+          online_resource: formData.online_resource || "",
           is_holiday: formData.is_holiday,
           created_by: formData.created_by,
           created_by_user_id: currentEvent?.created_by_user_id || user?.id,
@@ -578,6 +610,7 @@ export default function App() {
       evt.title.toLowerCase().includes(term) ||
       (evt.description || "").toLowerCase().includes(term) ||
       (evt.location || "").toLowerCase().includes(term) ||
+      (evt.online_link || "").toLowerCase().includes(term) ||
       (evt.created_by || "").toLowerCase().includes(term)
     ));
   }, [events, searchTerm]);
@@ -852,6 +885,7 @@ export default function App() {
           setEditingEvent(null);
         }}
         groups={groups}
+        events={events}
         selectedDate={selectedDate}
         editingEvent={editingEvent}
         currentUserName={user?.name}

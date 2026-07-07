@@ -196,6 +196,8 @@ CREATE TABLE IF NOT EXISTS public.events (
   location TEXT,
   is_online BOOLEAN NOT NULL DEFAULT false,
   online_platform TEXT,
+  online_link TEXT,
+  online_resource TEXT,
   is_holiday BOOLEAN NOT NULL DEFAULT false,
   created_by TEXT NOT NULL,
   created_by_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -203,6 +205,9 @@ CREATE TABLE IF NOT EXISTS public.events (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   CONSTRAINT events_end_date_not_before_start CHECK (end_date IS NULL OR end_date >= date)
 );
+
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS online_link TEXT;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS online_resource TEXT;
 
 CREATE INDEX IF NOT EXISTS events_date_idx ON public.events(date);
 CREATE INDEX IF NOT EXISTS events_group_id_idx ON public.events(group_id);

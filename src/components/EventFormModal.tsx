@@ -1,6 +1,25 @@
 import { useState, useEffect, FormEvent } from "react";
 import { X, Calendar, Clock, MapPin, AlignLeft, User, Info, Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { EventData, Group } from "../types";
+import {
+  findBookingConflict,
+  getOnlineResourceDescription,
+  getOnlineResourceLabel,
+  isOfficeBookableRoom,
+  OFFICE_BOOKABLE_ROOMS,
+  ONLINE_RESOURCES,
+} from "../utils/booking";
+
+const EXTERNAL_ROOMS = [
+  "ห้องประชุม ประเมินจันทวิมล อาคาร 1 ชั้น 1 กรมควบคุมโรค",
+  "ห้องประชุม อายุรกิจโกศล อาคาร 1 ชั้น 2 กรมควบคุมโรค",
+  "ห้องประชุม ประยูรกุนาศล อาคาร 1 ชั้น 3 กรมควบคุมโรค",
+  "ห้องประชุม อาคาร 10 ชั้น 7 กรมควบคุมโรค",
+  "ห้องประชุมชันนาทนะเรนทร",
+];
+
+const LOCATION_OTHER_VALUE = "__other__";
+const LOCATION_OPTIONS = [...OFFICE_BOOKABLE_ROOMS, ...EXTERNAL_ROOMS];
 
 const formatThaiDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -28,6 +47,7 @@ interface EventFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   groups: Group[];
+  events: EventData[];
   selectedDate: string; // Prepopulates when creating
   editingEvent: EventData | null; // Prepopulates when editing
   currentUserName?: string;
@@ -38,6 +58,7 @@ export default function EventFormModal({
   isOpen,
   onClose,
   groups,
+  events,
   selectedDate,
   editingEvent,
   currentUserName,
@@ -50,9 +71,11 @@ export default function EventFormModal({
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("12:00");
   const [groupId, setGroupId] = useState("gbt");
-  const [location, setLocation] = useState("");
+  const [locationChoice, setLocationChoice] = useState("");
+  const [customLocation, setCustomLocation] = useState("");
   const [isOnline, setIsOnline] = useState(false);
-  const [onlinePlatform, setOnlinePlatform] = useState("zoom");
+  const [onlineLink, setOnlineLink] = useState("");
+  const [onlineResource, setOnlineResource] = useState("");
   const [isHoliday, setIsHoliday] = useState(false);
   const [createdBy, setCreatedBy] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -73,9 +96,16 @@ export default function EventFormModal({
         setStartTime(editingEvent.start_time);
         setEndTime(editingEvent.end_time);
         setGroupId(editingEvent.group_id);
-        setLocation(editingEvent.location || "");
+        if (editingEvent.location && !LOCATION_OPTIONS.includes(editingEvent.location)) {
+          setLocationChoice(LOCATION_OTHER_VALUE);
+          setCustomLocation(editingEvent.location);
+        } else {
+          setLocationChoice(editingEvent.location || "");
+          setCustomLocation("");
+        }
         setIsOnline(evtToBool(editingEvent.is_online));
-        setOnlinePlatform(editingEvent.online_platform || "zoom");
+        setOnlineLink(editingEvent.online_link || "");
+        setOnlineResource(editingEvent.online_resource || "");
         setIsHoliday(evtToBool(editingEvent.is_holiday));
         setCreatedBy(editingEvent.created_by || "");
       } else {
@@ -88,9 +118,11 @@ export default function EventFormModal({
         setStartTime("09:00");
         setEndTime("12:00");
         setGroupId(groups[0]?.id || "");
-        setLocation("");
+        setLocationChoice("");
+        setCustomLocation("");
         setIsOnline(false);
-        setOnlinePlatform("zoom");
+        setOnlineLink("");
+        setOnlineResource("");
         setIsHoliday(false);
         setCreatedBy(currentUserName || "");
       }
@@ -122,6 +154,26 @@ export default function EventFormModal({
     ? (isHolidayForm ? "บันทึกวันหยุด" : "บันทึกการแก้ไข")
     : (isHolidayForm ? "บันทึกวันหยุด" : "บันทึกกิจกรรม");
 
+  const resolvedLocation = locationChoice === LOCATION_OTHER_VALUE ? customLocation.trim() : locationChoice;
+  const isMultiDayForm = endDate && endDate !== date;
+  const bookingCandidate = {
+    id: editingEvent?.id || "",
+    title,
+    date,
+    end_date: endDate || undefined,
+    start_time: isMultiDayForm ? "" : startTime,
+    end_time: isMultiDayForm ? "" : endTime,
+    location: resolvedLocation.trim(),
+    is_online: isOnline,
+    online_resource: isOnline ? onlineResource : "",
+    is_holiday: isHoliday,
+  } as EventData;
+  const bookingConflict = findBookingConflict(bookingCandidate, events);
+  const locationBookingConflict = bookingConflict?.type === "location" ? bookingConflict : null;
+  const onlineBookingConflict = bookingConflict?.type === "online_resource" ? bookingConflict : null;
+  const resolvedOnlinePlatform = onlineResource === "office_zoom" ? "zoom" : onlineResource === "office_webex" ? "webex" : "";
+  const shouldShowOnlineLink = isOnline && !onlineResource;
+
   const validate = () => {
     const isMultiDay = endDate && endDate !== date;
     const newErrors: { [key: string]: string } = {};
@@ -130,6 +182,15 @@ export default function EventFormModal({
     if (endDate && endDate < date) newErrors.endDate = "วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น";
     if (!groupId || !groups.some((group) => group.id === groupId)) {
       newErrors.groupId = "กรุณาเลือกกลุ่มงานที่มีอยู่จริง";
+    }
+    if (!isHolidayForm && !isOnline && !resolvedLocation.trim()) {
+      newErrors.location = "กรุณาเลือกหรือกรอกสถานที่จัดประชุม";
+    }
+    if (locationChoice === LOCATION_OTHER_VALUE && !customLocation.trim() && !isOnline && !isHolidayForm) {
+      newErrors.location = "กรุณากรอกสถานที่จัดประชุมอื่นๆ";
+    }
+    if (bookingConflict) {
+      newErrors.booking = `${bookingConflict.resourceName} ถูกจองแล้วในช่วงเวลาเดียวกัน: ${bookingConflict.event.title}`;
     }
     
     if (!isMultiDay) {
@@ -161,9 +222,11 @@ export default function EventFormModal({
       start_time: isMultiDay ? "" : startTime,
       end_time: isMultiDay ? "" : endTime,
       group_id: groupId,
-      location: location.trim(),
+      location: resolvedLocation.trim(),
       is_online: isOnline,
-      online_platform: isOnline ? onlinePlatform : "",
+      online_platform: isOnline ? resolvedOnlinePlatform : "",
+      online_link: shouldShowOnlineLink ? onlineLink.trim() : "",
+      online_resource: isOnline ? onlineResource : "",
       is_holiday: isHoliday,
       created_by: createdBy.trim(),
     });
@@ -623,15 +686,52 @@ export default function EventFormModal({
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              สถานที่จัดประชุม / ลิงก์ออนไลน์ *
+              สถานที่จัดประชุม
             </label>
-            <input 
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="ระบุชื่อห้องประชุม อาคาร หรือลิงก์ Zoom/Teams"
-              className="w-full text-sm px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all"
-            />
+            <select
+              value={locationChoice}
+              onChange={(e) => {
+                setLocationChoice(e.target.value);
+                if (e.target.value !== LOCATION_OTHER_VALUE) {
+                  setCustomLocation("");
+                }
+              }}
+              className={`w-full text-sm px-3.5 py-2 border rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all bg-white ${
+                errors.location ? "border-red-500" : "border-slate-200"
+              }`}
+            >
+              <option value="">ไม่ระบุสถานที่ / ประชุมออนไลน์เท่านั้น</option>
+              <optgroup label="ห้องประชุมสำนักงาน">
+                {OFFICE_BOOKABLE_ROOMS.map((room) => (
+                  <option key={room} value={room}>{room}</option>
+                ))}
+              </optgroup>
+              <optgroup label="ห้องประชุมภายนอก">
+                {EXTERNAL_ROOMS.map((room) => (
+                  <option key={room} value={room}>{room}</option>
+                ))}
+              </optgroup>
+              <option value={LOCATION_OTHER_VALUE}>อื่นๆ</option>
+            </select>
+            {locationChoice === LOCATION_OTHER_VALUE && (
+              <input
+                type="text"
+                value={customLocation}
+                onChange={(e) => setCustomLocation(e.target.value)}
+                placeholder="กรอกสถานที่จัดประชุมอื่นๆ"
+                className={`w-full text-sm px-3.5 py-2 border rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all ${
+                  errors.location ? "border-red-500" : "border-slate-200"
+                }`}
+              />
+            )}
+            {errors.location && <p className="text-xs text-red-500 font-sans">{errors.location}</p>}
+            {isOfficeBookableRoom(resolvedLocation) && !isHolidayForm && (
+              <p className={`text-xs font-sans ${locationBookingConflict ? "text-red-600" : "text-emerald-600"}`}>
+                {locationBookingConflict
+                  ? `${locationBookingConflict.resourceName} ถูกจองแล้ว: ${locationBookingConflict.event.title}`
+                  : `${resolvedLocation} ว่างในช่วงเวลานี้`}
+              </p>
+            )}
           </div>
 
           {/* Online & Holiday Toggle Buttons Row */}
@@ -646,7 +746,14 @@ export default function EventFormModal({
               <button
                 id="online-meeting-toggle"
                 type="button"
-                onClick={() => setIsOnline(!isOnline)}
+                onClick={() => {
+                  const nextIsOnline = !isOnline;
+                  setIsOnline(nextIsOnline);
+                  if (!nextIsOnline) {
+                    setOnlineLink("");
+                    setOnlineResource("");
+                  }
+                }}
                 className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
                   isOnline ? "bg-emerald-500" : "bg-slate-350"
                 }`}
@@ -673,42 +780,60 @@ export default function EventFormModal({
               </button>
             </div>
 
-            {/* Online Platform Selector */}
+            {/* Online Meeting */}
             {isOnline && (
               <div className="col-span-1 sm:col-span-2 p-3.5 border border-slate-150 bg-slate-50/50 rounded-2xl space-y-2.5 animate-in fade-in slide-in-from-top-1.5 duration-150">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 block">ช่องทางการประชุมออนไลน์ (Online Platform) *</span>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">
-                    ระบบจะเลือกแอปพลิเคชันหลักให้
-                  </span>
+                <div className="space-y-2 pt-1">
+                  <span className="text-xs font-bold text-slate-700 block">การประชุมออนไลน์</span>
+                  <div className="grid grid-cols-1 gap-2">
+                    {ONLINE_RESOURCES.map((resource) => {
+                      const isSelected = onlineResource === resource.id;
+                      return (
+                        <button
+                          id={`online-resource-${resource.id || "none"}-btn`}
+                          key={resource.id || "none"}
+                          type="button"
+                          onClick={() => {
+                            setOnlineResource(resource.id);
+                            if (resource.id) {
+                              setOnlineLink("");
+                            }
+                          }}
+                          className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-red-50 border-red-200 text-red-800"
+                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50/80 hover:border-slate-300"
+                          }`}
+                        >
+                          <span className="block text-xs font-bold font-sans">{resource.label}</span>
+                          <span className="block text-[10px] text-slate-500 font-sans mt-0.5">{resource.description}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {onlineResource && !isHolidayForm && (
+                    <p className={`text-xs font-sans ${onlineBookingConflict ? "text-red-600" : "text-emerald-600"}`}>
+                      {onlineBookingConflict
+                        ? `${onlineBookingConflict.resourceName} ถูกจองแล้ว: ${onlineBookingConflict.event.title}`
+                        : `${getOnlineResourceLabel(onlineResource)} ว่างในช่วงเวลานี้${getOnlineResourceDescription(onlineResource) ? ` (${getOnlineResourceDescription(onlineResource)})` : ""}`}
+                    </p>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: "zoom", label: "Zoom" },
-                    { id: "webex", label: "Cisco Webex" },
-                    { id: "teams", label: "MS Teams" },
-                    { id: "meet", label: "Google Meet" }
-                  ].map((platform) => {
-                    const isSelected = onlinePlatform === platform.id;
-                    return (
-                      <button
-                        id={`platform-${platform.id}-btn`}
-                        key={platform.id}
-                        type="button"
-                        onClick={() => setOnlinePlatform(platform.id)}
-                        className={`py-2 px-2.5 text-xs font-bold rounded-xl border text-center transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-red-600 border-red-600 text-white shadow-sm"
-                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50/80 hover:border-slate-300"
-                        }`}
-                      >
-                        <span className="font-sans">{platform.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {shouldShowOnlineLink && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">ลิงก์การประชุมออนไลน์</label>
+                    <input
+                      type="text"
+                      value={onlineLink}
+                      onChange={(e) => setOnlineLink(e.target.value)}
+                      placeholder="วางลิงก์ Zoom / Webex"
+                      className="w-full text-sm px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all bg-white"
+                    />
+                  </div>
+                )}
               </div>
             )}
+            {errors.booking && <p className="col-span-1 sm:col-span-2 text-xs text-red-500 font-sans">{errors.booking}</p>}
 
           </div>
 
@@ -746,7 +871,10 @@ export default function EventFormModal({
             id="submit-form-btn"
             type="submit"
             onClick={handleSubmit}
-            className="text-sm px-6 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-600/15 transition-all"
+            disabled={!!bookingConflict}
+            className={`text-sm px-6 py-2 rounded-xl text-white font-semibold shadow-md shadow-red-600/15 transition-all ${
+              bookingConflict ? "bg-slate-300 cursor-not-allowed shadow-none" : "bg-red-600 hover:bg-red-700"
+            }`}
           >
             {submitLabel}
           </button>
