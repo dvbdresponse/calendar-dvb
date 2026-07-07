@@ -114,6 +114,14 @@ export default function EventFormModal({
 
   if (!isOpen) return null;
 
+  const isHolidayForm = isHoliday || editingEvent?.is_holiday;
+  const modalTitle = editingEvent
+    ? (isHolidayForm ? "แก้ไขวันหยุด" : "แก้ไขกิจกรรมการประชุม")
+    : (isHolidayForm ? "เพิ่มวันหยุดใหม่" : "เพิ่มกิจกรรมการประชุมใหม่");
+  const submitLabel = editingEvent
+    ? (isHolidayForm ? "บันทึกวันหยุด" : "บันทึกการแก้ไข")
+    : (isHolidayForm ? "บันทึกวันหยุด" : "บันทึกกิจกรรม");
+
   const validate = () => {
     const isMultiDay = endDate && endDate !== date;
     const newErrors: { [key: string]: string } = {};
@@ -174,7 +182,7 @@ export default function EventFormModal({
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
             <h3 className="text-lg font-bold font-sans">
-              {editingEvent ? "แก้ไขกิจกรรมการประชุม" : "เพิ่มกิจกรรมการประชุมใหม่"}
+              {modalTitle}
             </h3>
           </div>
           <button 
@@ -740,7 +748,7 @@ export default function EventFormModal({
             onClick={handleSubmit}
             className="text-sm px-6 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-600/15 transition-all"
           >
-            {editingEvent ? "บันทึกการแก้ไข" : "บันทึกกิจกรรม"}
+            {submitLabel}
           </button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, BarChart3, Calendar, Database, RefreshCw } from "lucide-react";
 import { EventData, Group, SupabaseConfig, UserSession } from "./types";
-import { MOCK_EVENTS, GROUPS as INITIAL_GROUPS } from "./data/constants";
+import { MOCK_EVENTS, GROUPS as INITIAL_GROUPS, THAI_HOLIDAYS_2026 } from "./data/constants";
 import {
   createDynamicSupabaseClient,
   getCurrentSession,
@@ -25,6 +25,12 @@ const MeetingStatsDashboard = lazy(() => import("./components/MeetingStatsDashbo
 const EVENTS_STORAGE_KEY = "gov_calendar_local_events";
 const GROUPS_STORAGE_KEY = "gov_calendar_groups";
 const LEGACY_SESSION_KEY = "gov_calendar_user_session";
+const LOCAL_HOLIDAY_SEED_KEY = "gov_calendar_holiday_seed_2026_done";
+const SUPABASE_HOLIDAY_SEED_PREFIX = "gov_calendar_supabase_holiday_seed_2026_done";
+
+const getSupabaseHolidaySeedKey = (config: SupabaseConfig) => (
+  `${SUPABASE_HOLIDAY_SEED_PREFIX}:${config.url}:${config.tableName || "events"}`
+);
 
 const normalizeEvent = (evt: any): EventData => ({
   id: evt.id,
@@ -67,6 +73,49 @@ const groupToPayload = (group: Group) => ({
   border_color: group.borderColor,
 });
 
+const buildHolidaySeedEvents = (existingEvents: EventData[], groupList: Group[]) => {
+  const defaultGroupId = groupList[0]?.id || INITIAL_GROUPS[0]?.id || "office";
+  const existingKeys = new Set(
+    existingEvents
+      .filter((event) => event.is_holiday)
+      .map((event) => `${event.date}|${event.title}`)
+  );
+
+  return THAI_HOLIDAYS_2026
+    .filter((holiday) => !existingKeys.has(`${holiday.date}|${holiday.name}`))
+    .map((holiday, index) => ({
+      id: `thai-holiday-2026-${holiday.date}-${index}`,
+      title: holiday.name,
+      description: "",
+      date: holiday.date,
+      start_time: "",
+      end_time: "",
+      group_id: defaultGroupId,
+      location: "",
+      is_online: false,
+      online_platform: "",
+      is_holiday: true,
+      created_by: "ระบบ",
+      created_at: new Date().toISOString(),
+    } as EventData));
+};
+
+const eventToSupabasePayload = (event: Omit<EventData, "id"> & { id?: string }) => ({
+  title: event.title,
+  description: event.description,
+  date: event.date,
+  end_date: event.end_date || null,
+  start_time: event.start_time,
+  end_time: event.end_time,
+  group_id: event.group_id,
+  location: event.location,
+  is_online: event.is_online,
+  online_platform: event.online_platform || "",
+  is_holiday: event.is_holiday,
+  created_by: event.created_by,
+  created_by_user_id: event.created_by_user_id,
+});
+
 const formatSupabaseWriteError = (message: string, tableName: string) => {
   if (message.toLowerCase().includes("row-level security")) {
     return `Supabase RLS ยังบล็อกตาราง ${tableName}: กรุณาคัดลอก SQL Schema ล่าสุดจากหน้าตั้งค่าฐานข้อมูลไปรันใน Supabase SQL Editor`;
@@ -98,7 +147,7 @@ export default function App() {
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
 
   const isSupabaseMode = hasValidSupabaseConfig(supabaseConfig);
-  const canCreateEvent = isSupabaseMode && !!user;
+  const canCreateEvent = !isSupabaseMode || !!user;
   const canManageGroups = isSupabaseMode && !!user;
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info" = "success") => {
@@ -112,18 +161,33 @@ export default function App() {
   const loadFromLocalStorage = useCallback(() => {
     try {
       const saved = localStorage.getItem(EVENTS_STORAGE_KEY);
+      const savedGroups = localStorage.getItem(GROUPS_STORAGE_KEY);
+      const nextGroups = savedGroups ? JSON.parse(savedGroups) : INITIAL_GROUPS;
+      let nextEvents: EventData[];
+
       if (saved) {
-        setEvents(JSON.parse(saved));
+        nextEvents = JSON.parse(saved);
       } else {
-        localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(MOCK_EVENTS));
-        setEvents(MOCK_EVENTS);
+        nextEvents = MOCK_EVENTS;
       }
 
-      const savedGroups = localStorage.getItem(GROUPS_STORAGE_KEY);
-      setGroups(savedGroups ? JSON.parse(savedGroups) : INITIAL_GROUPS);
+      if (!localStorage.getItem(LOCAL_HOLIDAY_SEED_KEY)) {
+        const seedEvents = buildHolidaySeedEvents(nextEvents, nextGroups);
+        nextEvents = [...nextEvents, ...seedEvents];
+        localStorage.setItem(LOCAL_HOLIDAY_SEED_KEY, "true");
+      }
+
+      localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(nextEvents));
+      setEvents(nextEvents);
+      setGroups(nextGroups);
     } catch (e) {
       console.error("Failed to load local storage", e);
-      setEvents(MOCK_EVENTS);
+      const fallbackEvents = localStorage.getItem(LOCAL_HOLIDAY_SEED_KEY)
+        ? MOCK_EVENTS
+        : [...MOCK_EVENTS, ...buildHolidaySeedEvents(MOCK_EVENTS, INITIAL_GROUPS)];
+      localStorage.setItem(LOCAL_HOLIDAY_SEED_KEY, "true");
+      localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(fallbackEvents));
+      setEvents(fallbackEvents);
       setGroups(INITIAL_GROUPS);
     }
   }, []);
@@ -145,8 +209,26 @@ export default function App() {
         if (eventsResult.error) throw eventsResult.error;
         if (groupsResult.error) throw groupsResult.error;
 
-        setEvents((eventsResult.data || []).map(normalizeEvent));
-        setGroups((groupsResult.data && groupsResult.data.length > 0 ? groupsResult.data : INITIAL_GROUPS).map(normalizeGroup));
+        let nextEvents = (eventsResult.data || []).map(normalizeEvent);
+        const nextGroups = (groupsResult.data && groupsResult.data.length > 0 ? groupsResult.data : INITIAL_GROUPS).map(normalizeGroup);
+        const seedKey = getSupabaseHolidaySeedKey(config);
+        const hasSeededHolidays = localStorage.getItem(seedKey) === "true";
+
+        if (!hasSeededHolidays) {
+          const session = await getCurrentSession(client);
+          if (session) {
+            const seedEvents = buildHolidaySeedEvents(nextEvents, nextGroups);
+            if (seedEvents.length > 0) {
+              const { error: seedError } = await client.from(tableName).insert(seedEvents.map(eventToSupabasePayload));
+              if (seedError) throw seedError;
+              nextEvents = [...nextEvents, ...seedEvents];
+            }
+            localStorage.setItem(seedKey, "true");
+          }
+        }
+
+        setEvents(nextEvents);
+        setGroups(nextGroups);
 
         if (!options?.quiet) {
           showToast("เชื่อมโยงข้อมูลจาก Supabase สำเร็จ", "success");
@@ -209,6 +291,7 @@ export default function App() {
   }, [supabaseConfig]);
 
   const ensureCanWriteEvent = (event?: EventData | null) => {
+    if (!isSupabaseMode) return true;
     if (!isSupabaseMode) {
       showToast("ต้องเชื่อมต่อ Supabase และเข้าสู่ระบบก่อนจึงจะแก้ไขข้อมูลได้", "error");
       setIsSupabaseModalOpen(true);
@@ -223,8 +306,8 @@ export default function App() {
   };
 
   const canManageEvent = useCallback((event: EventData) => {
-    return !!user;
-  }, [user]);
+    return !isSupabaseMode || !!user;
+  }, [isSupabaseMode, user]);
 
   const validateEventPayload = (formData: Omit<EventData, "id" | "created_at"> & { id?: string }) => {
     if (!formData.title.trim()) return "กรุณากรอกหัวข้อกิจกรรมการประชุม";
@@ -248,6 +331,7 @@ export default function App() {
     const session = await signInWithPassword(client, email, password);
     const profile = await getUserProfile(client, session);
     setUser(profile);
+    await loadData(supabaseConfig, { quiet: true });
     showToast(`ยินดีต้อนรับคุณ ${profile?.name || email}`, "success");
   };
 
@@ -274,6 +358,7 @@ export default function App() {
     }
 
     const currentEvent = formData.id ? events.find((item) => item.id === formData.id) : null;
+    const itemLabel = formData.is_holiday ? "วันหยุด" : "กิจกรรม";
     if (!ensureCanWriteEvent(currentEvent)) return;
 
     if (hasValidSupabaseConfig(supabaseConfig)) {
@@ -303,7 +388,7 @@ export default function App() {
 
         if (error) throw error;
 
-        showToast(formData.id ? "แก้ไขกิจกรรมใน Supabase สำเร็จ" : "เพิ่มกิจกรรมใน Supabase สำเร็จ", "success");
+        showToast(formData.id ? `แก้ไข${itemLabel}ใน Supabase สำเร็จ` : `เพิ่ม${itemLabel}ใน Supabase สำเร็จ`, "success");
         await loadData(supabaseConfig, { quiet: true });
       } catch (e: any) {
         console.error("Supabase Save Error", e);
@@ -328,7 +413,7 @@ export default function App() {
 
       setEvents(updatedList);
       localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedList));
-      showToast(formData.id ? "แก้ไขกิจกรรมในเครื่องเรียบร้อยแล้ว" : "เพิ่มกิจกรรมในเครื่องเรียบร้อยแล้ว", "success");
+      showToast(formData.id ? `แก้ไข${itemLabel}ในเครื่องเรียบร้อยแล้ว` : `เพิ่ม${itemLabel}ในเครื่องเรียบร้อยแล้ว`, "success");
     } catch (e) {
       console.error("Local Save Error", e);
       showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
@@ -345,6 +430,7 @@ export default function App() {
     if (!confirmDeleteId) return;
     const id = confirmDeleteId;
     const currentEvent = events.find((event) => event.id === id);
+    const itemLabel = currentEvent?.is_holiday ? "วันหยุด" : "กิจกรรม";
     setConfirmDeleteId(null);
     if (!ensureCanWriteEvent(currentEvent)) return;
 
@@ -354,7 +440,7 @@ export default function App() {
         const client = createDynamicSupabaseClient(supabaseConfig);
         const { error } = await client.from(supabaseConfig.tableName || "events").delete().eq("id", id);
         if (error) throw error;
-        showToast("ลบกิจกรรมใน Supabase สำเร็จ", "success");
+        showToast(`ลบ${itemLabel}ใน Supabase สำเร็จ`, "success");
         await loadData(supabaseConfig, { quiet: true });
       } catch (e: any) {
         console.error("Supabase Delete Error", e);
@@ -368,7 +454,7 @@ export default function App() {
     const updatedList = events.filter((e) => e.id !== id);
     setEvents(updatedList);
     localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedList));
-    showToast("ลบกิจกรรมในเครื่องเรียบร้อยแล้ว", "success");
+    showToast(`ลบ${itemLabel}ในเครื่องเรียบร้อยแล้ว`, "success");
   };
 
   const handleSaveSupabaseConfig = (newConfig: SupabaseConfig | null) => {
@@ -477,6 +563,9 @@ export default function App() {
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
     ));
   };
+
+  const confirmDeleteEvent = confirmDeleteId ? events.find((event) => event.id === confirmDeleteId) : null;
+  const confirmDeleteLabel = confirmDeleteEvent?.is_holiday ? "วันหยุด" : "กิจกรรมการประชุม";
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans antialiased text-slate-800 pb-12">
@@ -702,7 +791,7 @@ export default function App() {
                 <AlertCircle className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-800 mb-2 font-sans">ยืนยันการลบ</h3>
-              <p className="text-slate-500 text-sm font-sans mb-6">คุณต้องการลบกิจกรรมการประชุมนี้ใช่หรือไม่? การลบไม่สามารถเรียกคืนข้อมูลได้</p>
+              <p className="text-slate-500 text-sm font-sans mb-6">คุณต้องการลบ{confirmDeleteLabel}นี้ใช่หรือไม่? การลบไม่สามารถเรียกคืนข้อมูลได้</p>
               <div className="flex flex-col gap-2">
                 <button type="button" onClick={executeDelete} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl transition-colors shadow-sm">
                   ใช่, ลบเลย

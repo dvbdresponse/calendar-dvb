@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
-import { THAI_HOLIDAYS_2026 } from "../data/constants";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 
 interface UnifiedHoliday {
   name: string;
-  isOfficial: boolean;
-  id?: string;
+  id: string;
   created_by?: string;
 }
 
@@ -141,29 +139,16 @@ export default function CalendarView({
     return event.date === targetDate;
   };
 
-  // Get all holidays for a specific date (official & custom)
+  // Get all holidays for a specific date. Official holidays are seeded into events.
   const getHolidaysForDate = (dateStr: string): UnifiedHoliday[] => {
     if (!showHolidays) return [];
-    const list: UnifiedHoliday[] = [];
-    
-    // Official holidays
-    const official = THAI_HOLIDAYS_2026.find(h => h.date === dateStr);
-    if (official) {
-      list.push({ name: official.name, isOfficial: true });
-    }
-    
-    // Custom holiday events
-    const userHolidays = events.filter(e => isDateInRange(e, dateStr) && e.is_holiday);
-    userHolidays.forEach(uh => {
-      list.push({ 
-        id: uh.id,
-        name: uh.title, 
-        isOfficial: false, 
-        created_by: uh.created_by 
-      });
-    });
-    
-    return list;
+    return events
+      .filter(e => isDateInRange(e, dateStr) && e.is_holiday)
+      .map(holiday => ({
+        id: holiday.id,
+        name: holiday.title,
+        created_by: holiday.created_by,
+      }));
   };
 
   // Keep for legacy/simple check where only first holiday is needed
@@ -937,18 +922,18 @@ export default function CalendarView({
                                     <h5 className="text-sm font-bold text-red-800 font-sans leading-snug">
                                       {h.name}
                                     </h5>
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${h.isOfficial ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-orange-100 text-orange-700 border border-orange-200'}`}>
-                                      {h.isOfficial ? 'วันหยุดราชการ' : 'วันหยุดสำนักงาน'}
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 border border-orange-200">
+                                      วันหยุด
                                     </span>
                                   </div>
                                   <p className="text-xs text-red-600/70 font-sans mt-0.5">
-                                    {h.isOfficial ? 'วันหยุดราชการนักขัตฤกษ์อย่างเป็นทางการ' : `กำหนดโดยผู้ลงบันทึก: ${h.created_by || "ผู้ดูแลระบบ"}`}
+                                    กำหนดโดยผู้ลงบันทึก: {h.created_by || "ระบบ"}
                                   </p>
                                 </div>
                               </div>
 
-                              {/* Custom holiday controls */}
-                              {!h.isOfficial && isLoggedIn && h.id && canManageHoliday(h) && (
+                              {/* Holiday controls */}
+                              {isLoggedIn && h.id && canManageHoliday(h) && (
                                 <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                                   <button
                                     type="button"
@@ -998,17 +983,42 @@ export default function CalendarView({
         </div>
 
         {/* Holiday Details (if any on selected day) */}
-        {getHolidayForDate(selectedDate) && (
-          <div className="mb-4 bg-red-50/70 border border-red-200/80 rounded-xl p-4 flex items-start gap-3">
-            <CalendarDays className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-bold text-red-800 font-sans">
-                วันนี้คือ {getHolidayForDate(selectedDate)?.name}
-              </h4>
-              <p className="text-xs text-red-600 font-sans mt-0.5">วันหยุดราชการอย่างเป็นทางการ</p>
+        {getHolidaysForDate(selectedDate).map((holiday) => {
+          const originalEvt = events.find(e => e.id === holiday.id);
+          return (
+            <div key={holiday.id} className="mb-4 bg-red-50/70 border border-red-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <CalendarDays className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-bold text-red-800 font-sans">
+                    วันนี้คือ {holiday.name}
+                  </h4>
+                  <p className="text-xs text-red-600 font-sans mt-0.5">
+                    กำหนดโดยผู้ลงบันทึก: {holiday.created_by || "ระบบ"}
+                  </p>
+                </div>
+              </div>
+              {isLoggedIn && originalEvt && canManageEvent(originalEvt) && (
+                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => onEditEvent(originalEvt)}
+                    className="text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-white px-2.5 py-1.5 rounded-lg border border-red-200 bg-white/70 transition-colors"
+                  >
+                    แก้ไข
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteEvent(originalEvt.id)}
+                    className="text-[11px] font-semibold text-slate-500 hover:text-red-600 hover:bg-white px-2.5 py-1.5 rounded-lg border border-red-200 bg-white/70 transition-colors"
+                  >
+                    ลบ
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })}
 
         {/* Selected date events list */}
         {getEventsForDate(selectedDate).length === 0 ? (
