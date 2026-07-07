@@ -220,10 +220,16 @@ export default function App() {
             const seedEvents = buildHolidaySeedEvents(nextEvents, nextGroups);
             if (seedEvents.length > 0) {
               const { error: seedError } = await client.from(tableName).insert(seedEvents.map(eventToSupabasePayload));
-              if (seedError) throw seedError;
-              nextEvents = [...nextEvents, ...seedEvents];
+              if (seedError) {
+                console.error("Supabase Holiday Seed Error", seedError);
+                showToast(`นำเข้าวันหยุดราชการไม่สำเร็จ: ${formatSupabaseWriteError(seedError.message || "", tableName)}`, "error");
+              } else {
+                nextEvents = [...nextEvents, ...seedEvents];
+                localStorage.setItem(seedKey, "true");
+              }
+            } else {
+              localStorage.setItem(seedKey, "true");
             }
-            localStorage.setItem(seedKey, "true");
           }
         }
 
