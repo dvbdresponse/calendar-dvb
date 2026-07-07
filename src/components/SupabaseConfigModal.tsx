@@ -243,6 +243,14 @@ export default function SupabaseConfigModal({
               </div>
             </div>
 
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 leading-relaxed font-sans">
+              <p className="font-bold text-amber-900">หากนำเข้าวันหยุดราชการไม่สำเร็จ ให้รัน SQL Schema ล่าสุดนี้ใน Supabase SQL Editor</p>
+              <p className="mt-1">ส่วนสำคัญคือ RLS policy สำหรับเพิ่มรายการในตาราง events:</p>
+              <code className="mt-2 block bg-white/70 border border-amber-200 rounded-md px-2 py-1 text-[11px] text-amber-900 overflow-x-auto">
+                CREATE POLICY "Authenticated users create events" ON public.events FOR INSERT TO authenticated WITH CHECK (true);
+              </code>
+            </div>
+
             <p className="text-xs text-slate-500 leading-relaxed font-sans">
               วิธีทำ: รัน SQL นี้ใน Supabase SQL Editor จากนั้นสร้างผู้ใช้ใน Authentication ผู้ที่เข้าสู่ระบบแล้วจะสามารถแก้ไขข้อมูลได้ทันที ส่วนตาราง profiles ใช้เสริมชื่อแสดงผลเท่านั้น
             </p>

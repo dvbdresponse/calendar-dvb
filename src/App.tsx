@@ -116,6 +116,39 @@ const eventToSupabasePayload = (event: Omit<EventData, "id"> & { id?: string }) 
   created_by_user_id: event.created_by_user_id,
 });
 
+const seedSupabaseHolidayEvents = async (
+  client: any,
+  config: SupabaseConfig,
+  tableName: string,
+  existingEvents: EventData[],
+  groupList: Group[],
+) => {
+  const seedKey = getSupabaseHolidaySeedKey(config);
+  if (localStorage.getItem(seedKey) === "true") {
+    return { events: existingEvents, error: null as string | null };
+  }
+
+  const session = await getCurrentSession(client);
+  if (!session) {
+    return { events: existingEvents, error: null as string | null };
+  }
+
+  const seedEvents = buildHolidaySeedEvents(existingEvents, groupList);
+  if (seedEvents.length === 0) {
+    localStorage.setItem(seedKey, "true");
+    return { events: existingEvents, error: null as string | null };
+  }
+
+  const { error } = await client.from(tableName).insert(seedEvents.map(eventToSupabasePayload));
+  if (error) {
+    console.error("Supabase Holiday Seed Error", error);
+    return { events: existingEvents, error: formatSupabaseWriteError(error.message || "", tableName) };
+  }
+
+  localStorage.setItem(seedKey, "true");
+  return { events: [...existingEvents, ...seedEvents], error: null as string | null };
+};
+
 const formatSupabaseWriteError = (message: string, tableName: string) => {
   if (message.toLowerCase().includes("row-level security")) {
     return `Supabase RLS ยังบล็อกตาราง ${tableName}: กรุณาคัดลอก SQL Schema ล่าสุดจากหน้าตั้งค่าฐานข้อมูลไปรันใน Supabase SQL Editor`;
@@ -139,6 +172,7 @@ export default function App() {
   const [supabaseConfig, setSupabaseConfigState] = useState<SupabaseConfig | null>(getSupabaseConfig());
   const [isDbLoading, setIsDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [holidaySeedError, setHolidaySeedError] = useState<string | null>(null);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isGroupManagerModalOpen, setIsGroupManagerModalOpen] = useState(false);
@@ -195,6 +229,7 @@ export default function App() {
   const loadData = useCallback(async (config: SupabaseConfig | null, options?: { quiet?: boolean }) => {
     setIsDbLoading(true);
     setDbError(null);
+    setHolidaySeedError(null);
 
     if (hasValidSupabaseConfig(config)) {
       try {
@@ -211,27 +246,9 @@ export default function App() {
 
         let nextEvents = (eventsResult.data || []).map(normalizeEvent);
         const nextGroups = (groupsResult.data && groupsResult.data.length > 0 ? groupsResult.data : INITIAL_GROUPS).map(normalizeGroup);
-        const seedKey = getSupabaseHolidaySeedKey(config);
-        const hasSeededHolidays = localStorage.getItem(seedKey) === "true";
-
-        if (!hasSeededHolidays) {
-          const session = await getCurrentSession(client);
-          if (session) {
-            const seedEvents = buildHolidaySeedEvents(nextEvents, nextGroups);
-            if (seedEvents.length > 0) {
-              const { error: seedError } = await client.from(tableName).insert(seedEvents.map(eventToSupabasePayload));
-              if (seedError) {
-                console.error("Supabase Holiday Seed Error", seedError);
-                showToast(`นำเข้าวันหยุดราชการไม่สำเร็จ: ${formatSupabaseWriteError(seedError.message || "", tableName)}`, "error");
-              } else {
-                nextEvents = [...nextEvents, ...seedEvents];
-                localStorage.setItem(seedKey, "true");
-              }
-            } else {
-              localStorage.setItem(seedKey, "true");
-            }
-          }
-        }
+        const seedResult = await seedSupabaseHolidayEvents(client, config, tableName, nextEvents, nextGroups);
+        nextEvents = seedResult.events;
+        setHolidaySeedError(seedResult.error);
 
         setEvents(nextEvents);
         setGroups(nextGroups);
@@ -248,6 +265,7 @@ export default function App() {
         setIsDbLoading(false);
       }
     } else {
+      setHolidaySeedError(null);
       loadFromLocalStorage();
       setIsDbLoading(false);
     }
@@ -570,6 +588,37 @@ export default function App() {
     ));
   };
 
+  const handleRetryHolidaySeed = async () => {
+    if (!hasValidSupabaseConfig(supabaseConfig)) return;
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    const tableName = supabaseConfig.tableName || "events";
+    setIsDbLoading(true);
+    setHolidaySeedError(null);
+
+    try {
+      const client = createDynamicSupabaseClient(supabaseConfig);
+      const seedResult = await seedSupabaseHolidayEvents(client, supabaseConfig, tableName, events, groups);
+      setEvents(seedResult.events);
+      setHolidaySeedError(seedResult.error);
+
+      if (seedResult.error) {
+        showToast("ยังนำเข้าวันหยุดราชการไม่สำเร็จ กรุณาตรวจสอบ RLS policy ใน Supabase", "error");
+      } else {
+        showToast("นำเข้าวันหยุดราชการสำเร็จ", "success");
+      }
+    } catch (e: any) {
+      console.error("Retry Holiday Seed Error", e);
+      setHolidaySeedError(formatSupabaseWriteError(e.message || "", tableName));
+      showToast("นำเข้าวันหยุดราชการไม่สำเร็จ", "error");
+    } finally {
+      setIsDbLoading(false);
+    }
+  };
+
   const confirmDeleteEvent = confirmDeleteId ? events.find((event) => event.id === confirmDeleteId) : null;
   const confirmDeleteLabel = confirmDeleteEvent?.is_holiday ? "วันหยุด" : "กิจกรรมการประชุม";
 
@@ -644,6 +693,40 @@ export default function App() {
                 className="text-xs underline text-red-700 hover:text-red-900 font-bold mt-2 block"
               >
                 ลองเชื่อมต่อใหม่อีกครั้ง
+              </button>
+            </div>
+          </div>
+        )}
+
+        {holidaySeedError && !dbError && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-3 shadow-sm">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-900 font-sans">นำเข้าวันหยุดราชการไม่สำเร็จ</p>
+                <p className="text-xs text-amber-800/90 font-sans mt-0.5">{holidaySeedError}</p>
+                <p className="text-xs text-amber-700 font-sans mt-1">
+                  ปฏิทินยังอ่านข้อมูลจาก Supabase ได้ตามปกติ แต่ต้องรัน SQL Schema/RLS ล่าสุดใน Supabase SQL Editor ก่อนจึงจะนำเข้าวันหยุดราชการได้
+                </p>
+                <code className="mt-2 inline-block text-[11px] bg-white/70 border border-amber-200 rounded-md px-2 py-1 text-amber-900">
+                  CREATE POLICY "Authenticated users create events" ON public.events FOR INSERT TO authenticated WITH CHECK (true);
+                </code>
+              </div>
+            </div>
+            <div className="flex sm:flex-col gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleRetryHolidaySeed}
+                className="text-xs font-semibold px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition-colors font-sans whitespace-nowrap"
+              >
+                ลองนำเข้าอีกครั้ง
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSupabaseModalOpen(true)}
+                className="text-xs font-semibold px-3.5 py-1.5 bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg transition-colors font-sans whitespace-nowrap"
+              >
+                เปิด SQL Schema
               </button>
             </div>
           </div>
