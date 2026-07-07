@@ -7,7 +7,7 @@ export const OFFICE_BOOKABLE_ROOMS = [
 
 export const ONLINE_RESOURCES = [
   { id: "", label: "เข้าร่วมประชุมภายนอก / ไม่จองห้องออนไลน์ของสำนัก", description: "ใส่ลิงก์ประชุมได้ โดยไม่กันเวลา Zoom/Webex ของสำนัก" },
-  { id: "office_zoom", label: "จอง Zoom ของสำนัก", description: "ห้อง 222 590 3373" },
+  { id: "office_zoom", label: "จอง Zoom ของสำนัก", description: "บัญชี Zoom ของสำนัก" },
   { id: "office_webex", label: "จอง Webex ของสำนัก", description: "บัญชี Webex ของสำนัก" },
 ];
 
