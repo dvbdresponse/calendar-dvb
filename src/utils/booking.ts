@@ -3,6 +3,7 @@ import { EventData } from "../types";
 export const OFFICE_BOOKABLE_ROOMS = [
   "ห้องประชุม สคอ.(ใหญ่)",
   "ห้องประชุม สคอ.(เล็ก)",
+  "ห้องประชุม ผอ.",
 ];
 
 export const ONLINE_RESOURCES = [
