@@ -44,6 +44,10 @@ VALUES ('USER_UUID_FROM_AUTH_USERS', 'user@example.go.th', 'เจ้าหน�
 
 The SQL enables RLS. Calendar events and groups are publicly readable. Creating, updating, deleting, and managing groups require a signed-in Supabase Auth user.
 
+## LINE Daily Digest Notifications
+
+A Supabase Edge Function can send a daily summary of the day's events to a LINE group each morning. See [docs/line-notifications.md](docs/line-notifications.md) for setup — this is optional and lives entirely in Supabase (secrets + a scheduled function), no frontend `.env` changes needed.
+
 ## Checks
 
 ```bash
