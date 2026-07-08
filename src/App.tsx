@@ -264,7 +264,7 @@ export default function App() {
 
         const [eventsResult, groupsResult] = await Promise.all([
           client.from(tableName).select("*").order("date", { ascending: true }).order("start_time", { ascending: true }),
-          client.from("groups").select("*").order("name", { ascending: true }),
+          client.from("groups").select("*").order("id", { ascending: true }),
         ]);
 
         if (eventsResult.error) throw eventsResult.error;
