@@ -28,7 +28,7 @@ export const getOnlineResourceLabel = (resource?: string) => {
 };
 
 export const getOnlineResourceDescription = (resource?: string) => {
-  if (resource === "office_zoom") return "รหัสห้อง 222 590 3373";
+  if (resource === "office_zoom") return "บัญชี Zoom ของสำนัก";
   if (resource === "office_webex") return "บัญชี Webex ของสำนัก";
   return "";
 };
