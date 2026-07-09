@@ -1,4 +1,4 @@
-// Daily LINE digest of today's calendar events.
+// Daily LINE digest of today's calendar events, sent as a Flex Message card.
 // Triggered by a Supabase Cron Job (pg_cron + pg_net) — see docs/line-notifications.md.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -35,54 +35,168 @@ type EventRow = {
   online_link: string | null;
   is_holiday: boolean | null;
   group_id: string | null;
-  groups: { label: string; name: string } | null;
+  groups: { label: string; name: string; color: string | null } | null;
 };
 
-const formatEventLine = (event: EventRow): string => {
-  const groupLabel = event.groups?.label ?? event.groups?.name;
-  const parts: string[] = [];
+const DEFAULT_STRIPE_COLOR = "#64748B";
+const HOLIDAY_STRIPE_COLOR = "#D97706";
+const MAX_ITEMS = 20;
 
-  if (event.is_holiday) {
-    parts.push(`🎌 วันหยุด: ${event.title}`);
-  } else {
-    const time = event.start_time
+const sortEvents = (events: EventRow[]): EventRow[] => {
+  const timed = events.filter((e) => e.is_holiday || e.start_time);
+  const untimed = events.filter((e) => !e.is_holiday && !e.start_time);
+  timed.sort(
+    (a, b) =>
+      (a.is_holiday ? -1 : 1) - (b.is_holiday ? -1 : 1) ||
+      (a.start_time || "").localeCompare(b.start_time || ""),
+  );
+  return [...timed, ...untimed];
+};
+
+const isValidLineUri = (url: string | null): url is string =>
+  !!url && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("line://"));
+
+const buildEventBox = (event: EventRow) => {
+  const groupLabel = event.groups?.label ?? event.groups?.name;
+  const stripeColor = event.is_holiday ? HOLIDAY_STRIPE_COLOR : event.groups?.color || DEFAULT_STRIPE_COLOR;
+
+  const timeText = event.is_holiday
+    ? "วันหยุด"
+    : event.start_time
       ? `${event.start_time}${event.end_time ? `-${event.end_time}` : ""} น.`
       : "ไม่ระบุเวลา";
-    parts.push(`🕘 ${time} ${event.title}${groupLabel ? ` (${groupLabel})` : ""}`);
+
+  const detailContents: Record<string, unknown>[] = [
+    {
+      type: "text",
+      text: timeText,
+      size: "xs",
+      weight: "bold",
+      color: event.is_holiday ? HOLIDAY_STRIPE_COLOR : "#4F46E5",
+    },
+    {
+      type: "text",
+      text: event.title,
+      size: "sm",
+      weight: "bold",
+      wrap: true,
+      color: "#1F2937",
+      margin: "xs",
+    },
+  ];
+
+  if (groupLabel) {
+    detailContents.push({
+      type: "text",
+      text: `🏢 ${groupLabel}`,
+      size: "xxs",
+      color: "#6B7280",
+      margin: "xs",
+    });
   }
 
   if (event.is_online && event.online_link) {
-    parts.push(`   💻 ${event.online_link}`);
+    detailContents.push({
+      type: "text",
+      text: "💻 ประชุมออนไลน์",
+      size: "xxs",
+      color: "#6B7280",
+      margin: "xs",
+    });
+    if (isValidLineUri(event.online_link)) {
+      detailContents.push({
+        type: "button",
+        style: "link",
+        height: "sm",
+        margin: "xs",
+        action: { type: "uri", label: "เข้าร่วมออนไลน์", uri: event.online_link },
+      });
+    }
   } else if (event.location) {
-    parts.push(`   📍 ${event.location}`);
+    detailContents.push({
+      type: "text",
+      text: `📍 ${event.location}`,
+      size: "xxs",
+      color: "#6B7280",
+      margin: "xs",
+      wrap: true,
+    });
   }
 
-  return parts.join("\n");
+  return {
+    type: "box",
+    layout: "horizontal",
+    margin: "md",
+    contents: [
+      { type: "box", layout: "vertical", width: "6px", backgroundColor: stripeColor, contents: [{ type: "filler" }] },
+      { type: "box", layout: "vertical", margin: "md", contents: detailContents },
+    ],
+  };
 };
 
-const buildDigest = (dateIso: string, events: EventRow[]): string => {
-  const header = `📅 กำหนดการวันนี้ (${formatThaiDate(dateIso)})`;
+const buildFlexContents = (dateIso: string, events: EventRow[]) => {
+  const sorted = sortEvents(events);
+  const shown = sorted.slice(0, MAX_ITEMS);
+  const overflowCount = sorted.length - shown.length;
 
-  if (events.length === 0) {
-    return `${header}\n\nวันนี้ไม่มีนัดหมายในปฏิทิน`;
+  const bodyContents: Record<string, unknown>[] =
+    shown.length === 0
+      ? [{ type: "text", text: "วันนี้ไม่มีนัดหมายในปฏิทิน", size: "sm", color: "#6B7280", wrap: true }]
+      : shown.map(buildEventBox);
+
+  if (overflowCount > 0) {
+    bodyContents.push({
+      type: "text",
+      text: `และอีก ${overflowCount} รายการ`,
+      size: "xs",
+      color: "#9CA3AF",
+      margin: "md",
+      align: "center",
+    });
   }
 
-  const timed = events.filter((e) => e.is_holiday || e.start_time);
-  const untimed = events.filter((e) => !e.is_holiday && !e.start_time);
-  const sorted = [
-    ...timed.sort((a, b) => (a.is_holiday ? -1 : 1) - (b.is_holiday ? -1 : 1) || (a.start_time || "").localeCompare(b.start_time || "")),
-    ...untimed,
-  ];
-
-  const MAX_LINES = 40;
-  const shown = sorted.slice(0, MAX_LINES);
-  const lines = shown.map(formatEventLine).join("\n\n");
-  const overflow = sorted.length > MAX_LINES ? `\n\nและอีก ${sorted.length - MAX_LINES} รายการ` : "";
-
-  return `${header}\n\n${lines}${overflow}\n\nรวม ${events.length} รายการ`;
+  return {
+    type: "bubble",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: "#4F46E5",
+      paddingAll: "16px",
+      contents: [
+        { type: "text", text: "📅 กำหนดการวันนี้", size: "lg", weight: "bold", color: "#FFFFFF" },
+        { type: "text", text: formatThaiDate(dateIso), size: "sm", color: "#E0E7FF", margin: "xs" },
+      ],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "16px",
+      contents: bodyContents,
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "12px",
+      contents: [
+        {
+          type: "text",
+          text: `รวม ${events.length} รายการ`,
+          size: "xs",
+          color: "#9CA3AF",
+          align: "center",
+        },
+      ],
+    },
+  };
 };
 
-const pushToLine = async (text: string) => {
+const buildAltText = (dateIso: string, events: EventRow[]): string => {
+  const dateText = formatThaiDate(dateIso);
+  if (events.length === 0) return `กำหนดการวันนี้ (${dateText}) — ไม่มีนัดหมาย`;
+  return `กำหนดการวันนี้ (${dateText}) มี ${events.length} รายการ`;
+};
+
+const pushToLine = async (dateIso: string, events: EventRow[]) => {
   const token = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
   const groupId = Deno.env.get("LINE_GROUP_ID");
   if (!token || !groupId) {
@@ -95,7 +209,16 @@ const pushToLine = async (text: string) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ to: groupId, messages: [{ type: "text", text }] }),
+    body: JSON.stringify({
+      to: groupId,
+      messages: [
+        {
+          type: "flex",
+          altText: buildAltText(dateIso, events),
+          contents: buildFlexContents(dateIso, events),
+        },
+      ],
+    }),
   });
 
   if (!response.ok) {
@@ -125,7 +248,7 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabase
       .from("events")
-      .select("title, start_time, end_time, location, is_online, online_link, is_holiday, group_id, groups(label, name)")
+      .select("title, start_time, end_time, location, is_online, online_link, is_holiday, group_id, groups(label, name, color)")
       .lte("date", dateIso)
       .or(`end_date.gte.${dateIso},and(end_date.is.null,date.eq.${dateIso})`);
 
@@ -134,11 +257,10 @@ Deno.serve(async (req) => {
     const events = ((data ?? []) as unknown as EventRow[]).filter(
       (event) => !EXCLUDED_GROUP_IDS.includes(event.group_id ?? ""),
     );
-    const digest = buildDigest(dateIso, events);
 
     let lineStatus = "skipped";
     try {
-      await pushToLine(digest);
+      await pushToLine(dateIso, events);
       lineStatus = "sent";
     } catch (lineError) {
       console.error("Failed to push to LINE:", lineError);

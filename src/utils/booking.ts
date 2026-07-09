@@ -33,6 +33,11 @@ export const getOnlineResourceDescription = (resource?: string) => {
   return "";
 };
 
+export const getOnlineResourceLink = (resource?: string) => {
+  if (resource === "office_zoom") return "https://zoom.us/j/2225903373?pwd=L9fLyJjQy1hnzJeMgTZ8BoYjbHhEGH.1";
+  return "";
+};
+
 const getEndDate = (event: BookingCandidate) => event.end_date || event.date;
 
 const hasDateOverlap = (a: BookingCandidate, b: BookingCandidate) => (
