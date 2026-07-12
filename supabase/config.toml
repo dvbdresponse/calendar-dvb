@@ -3,5 +3,8 @@ project_id = "tvvjdzqcapraebvmztly"
 [functions.line-daily-digest]
 verify_jwt = false
 
+[functions.line-webhook]
+verify_jwt = false
+
 [functions.line-webhook-debug]
 verify_jwt = false
