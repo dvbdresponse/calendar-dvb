@@ -1,10 +1,12 @@
-// Production LINE webhook: replies to the "/today" command with today's calendar digest.
+// Production LINE webhook: replies to today-digest commands with today's calendar digest.
 // Reply API is free and does not count against the push message quota.
 // See docs/line-notifications.md for setup (Channel secret, webhook URL).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildAltText, buildFlexContents, EventRow, fetchEventsForDate, todayInBangkok } from "../_shared/lineDigest.ts";
 
-const TRIGGER_COMMAND = "/today";
+// The whole message must equal one of these (exact match after trim/lowercase) —
+// substring matching would misfire constantly in an 80-person group chat.
+const TRIGGER_COMMANDS = ["/today", "วันนี้", "นัดหมายวันนี้", "กำหนดการวันนี้", "ประชุม", "meeting"];
 
 type LineWebhookEvent = {
   type: string;
@@ -91,7 +93,7 @@ Deno.serve(async (req) => {
     if (
       event.type !== "message" ||
       event.message?.type !== "text" ||
-      event.message.text?.trim().toLowerCase() !== TRIGGER_COMMAND ||
+      !TRIGGER_COMMANDS.includes(event.message.text?.trim().toLowerCase() ?? "") ||
       !event.replyToken
     ) {
       continue;

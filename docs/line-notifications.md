@@ -115,9 +115,9 @@ Anyone in the group can type `/today` to get an immediate reply with today's dig
    https://tvvjdzqcapraebvmztly.supabase.co/functions/v1/line-webhook
    ```
    and turn "Use webhook" **ON** (leave it on permanently — `/today` and future group-ID lookups both depend on it).
-5. In the LINE group, type `/today` (exact match, case-insensitive). The bot should reply within a couple seconds with the same Flex card the daily digest sends.
+5. In the LINE group, type `/today` — or the equivalents `วันนี้`, `นัดหมายวันนี้`, `กำหนดการวันนี้`, `ประชุม`, `meeting`. The bot should reply within a couple seconds with the same Flex card the daily digest sends.
 
-Only messages that are exactly `/today` trigger a reply — everything else is ignored (logged as `LINE event: message <sourceId>` for visibility, but no message text is logged to avoid storing group chat content).
+The whole message must exactly equal one of the trigger words (case-insensitive, whitespace-trimmed) — a sentence merely containing them is ignored, so normal chat like "เดี๋ยวเจอกันวันนี้นะ" doesn't set the bot off. Everything else is ignored (logged as `LINE event: message <sourceId>` for visibility, but no message text is logged to avoid storing group chat content).
 
 ## Troubleshooting
 
