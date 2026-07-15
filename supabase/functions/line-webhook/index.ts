@@ -6,7 +6,7 @@ import { buildAltText, buildFlexContents, EventRow, fetchEventsForDate, todayInB
 
 // The whole message must equal one of these (exact match after trim/lowercase) —
 // substring matching would misfire constantly in an 80-person group chat.
-const TRIGGER_COMMANDS = ["/today", "วันนี้", "นัดหมายวันนี้", "กำหนดการวันนี้", "ประชุม", "meeting"];
+const TRIGGER_COMMANDS = ["/today", "วันนี้", "ไม่อยากประชุม", "กำหนดการวันนี้", "ประชุม", "meeting"];
 
 type LineWebhookEvent = {
   type: string;
