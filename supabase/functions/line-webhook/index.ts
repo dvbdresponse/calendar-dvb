@@ -7,6 +7,16 @@ import { buildAltText, buildFlexContents, EventRow, fetchEventsForDate, todayInB
 // The whole message must equal one of these (exact match after trim/lowercase) —
 // substring matching would misfire constantly in an 80-person group chat.
 const TRIGGER_COMMANDS = ["/today", "วันนี้", "ไม่อยากประชุม", "กำหนดการวันนี้", "ประชุม", "meeting"];
+const HELP_COMMANDS = ["/help", "help", "ช่วยเหลือ", "วิธีใช้", "คำสั่ง"];
+
+const HELP_MESSAGE = [
+  "🤖 วิธีใช้งานบอทกำหนดการ",
+  "",
+  "พิมพ์คำใดคำหนึ่งต่อไปนี้ (ต้องพิมพ์ให้ตรงทั้งข้อความ) เพื่อดูกำหนดการวันนี้:",
+  TRIGGER_COMMANDS.map((cmd) => `• ${cmd}`).join("\n"),
+  "",
+  "พิมพ์ /help เพื่อแสดงข้อความนี้อีกครั้ง",
+].join("\n");
 
 type LineWebhookEvent = {
   type: string;
@@ -36,7 +46,7 @@ const verifySignature = async (rawBody: string, signature: string | null, channe
   return timingSafeEqual(expected, signature);
 };
 
-const replyToLine = async (replyToken: string, dateIso: string, events: EventRow[]) => {
+const postReply = async (replyToken: string, messages: Record<string, unknown>[]) => {
   const token = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
   if (!token) throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not configured");
 
@@ -46,16 +56,7 @@ const replyToLine = async (replyToken: string, dateIso: string, events: EventRow
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      replyToken,
-      messages: [
-        {
-          type: "flex",
-          altText: buildAltText(dateIso, events),
-          contents: buildFlexContents(dateIso, events),
-        },
-      ],
-    }),
+    body: JSON.stringify({ replyToken, messages }),
   });
 
   if (!response.ok) {
@@ -63,6 +64,18 @@ const replyToLine = async (replyToken: string, dateIso: string, events: EventRow
     throw new Error(`LINE reply failed (${response.status}): ${body}`);
   }
 };
+
+const replyToLine = (replyToken: string, dateIso: string, events: EventRow[]) =>
+  postReply(replyToken, [
+    {
+      type: "flex",
+      altText: buildAltText(dateIso, events),
+      contents: buildFlexContents(dateIso, events),
+    },
+  ]);
+
+const replyHelp = (replyToken: string) =>
+  postReply(replyToken, [{ type: "text", text: HELP_MESSAGE }]);
 
 Deno.serve(async (req) => {
   const rawBody = await req.text();
@@ -90,19 +103,23 @@ Deno.serve(async (req) => {
   for (const event of payload.events ?? []) {
     console.log("LINE event:", event.type, event.source?.groupId ?? event.source?.roomId ?? event.source?.userId);
 
-    if (
-      event.type !== "message" ||
-      event.message?.type !== "text" ||
-      !TRIGGER_COMMANDS.includes(event.message.text?.trim().toLowerCase() ?? "") ||
-      !event.replyToken
-    ) {
+    if (event.type !== "message" || event.message?.type !== "text" || !event.replyToken) {
       continue;
     }
 
+    const text = event.message.text?.trim().toLowerCase() ?? "";
+    const isHelp = HELP_COMMANDS.includes(text);
+    const isTrigger = TRIGGER_COMMANDS.includes(text);
+    if (!isHelp && !isTrigger) continue;
+
     try {
-      const dateIso = todayInBangkok();
-      const events = await fetchEventsForDate(supabase, dateIso);
-      await replyToLine(event.replyToken, dateIso, events);
+      if (isHelp) {
+        await replyHelp(event.replyToken);
+      } else {
+        const dateIso = todayInBangkok();
+        const events = await fetchEventsForDate(supabase, dateIso);
+        await replyToLine(event.replyToken, dateIso, events);
+      }
     } catch (err) {
       console.error("Failed to reply to LINE event:", err);
     }
