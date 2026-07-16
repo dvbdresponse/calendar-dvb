@@ -3,6 +3,14 @@
 // See docs/line-notifications.md for setup (Channel secret, webhook URL).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildAltText, buildFlexContents, EventRow, fetchEventsForDate, todayInBangkok } from "../_shared/lineDigest.ts";
+import {
+  buildCarAltText,
+  buildCarFlexContents,
+  fetchCarBookingsForDate,
+  getBookcarClient,
+  parseCarCommand,
+  resolveCarDate,
+} from "../_shared/carBookings.ts";
 
 // The whole message must equal one of these (exact match after trim/lowercase) —
 // substring matching would misfire constantly in an 80-person group chat.
@@ -10,10 +18,15 @@ const TRIGGER_COMMANDS = ["/today", "วันนี้", "ไม่อยาก
 const HELP_COMMANDS = ["/help", "help", "ช่วยเหลือ", "วิธีใช้", "คำสั่ง"];
 
 const HELP_MESSAGE = [
-  "🤖 วิธีใช้งานบอทกำหนดการ",
+  "🤖 วิธีใช้งานบอท ALC",
   "",
-  "พิมพ์คำใดคำหนึ่งต่อไปนี้ (ต้องพิมพ์ให้ตรงทั้งข้อความ) เพื่อดูกำหนดการวันนี้:",
+  "📅 กำหนดการวันนี้ — พิมพ์คำใดคำหนึ่ง (ต้องพิมพ์ให้ตรงทั้งข้อความ):",
   TRIGGER_COMMANDS.map((cmd) => `• ${cmd}`).join("\n"),
+  "",
+  "🚗 การใช้รถ:",
+  "• ใช้รถ — รายการใช้รถวันนี้",
+  "• ใช้รถพรุ่งนี้ — รายการใช้รถพรุ่งนี้",
+  "• ใช้รถเมื่อวาน — รายการใช้รถเมื่อวาน",
   "",
   "พิมพ์ /help เพื่อแสดงข้อความนี้อีกครั้ง",
 ].join("\n");
@@ -110,15 +123,27 @@ Deno.serve(async (req) => {
     const text = event.message.text?.trim().toLowerCase() ?? "";
     const isHelp = HELP_COMMANDS.includes(text);
     const isTrigger = TRIGGER_COMMANDS.includes(text);
-    if (!isHelp && !isTrigger) continue;
+    const carCommand = parseCarCommand(text);
+    if (!isHelp && !isTrigger && !carCommand) continue;
 
     try {
       if (isHelp) {
         await replyHelp(event.replyToken);
-      } else {
+      } else if (isTrigger) {
         const dateIso = todayInBangkok();
         const events = await fetchEventsForDate(supabase, dateIso);
         await replyToLine(event.replyToken, dateIso, events);
+      } else if (carCommand) {
+        // Car bookings live in the book-car Supabase project (public read, anon key).
+        const { dateIso, label } = resolveCarDate(carCommand);
+        const carData = await fetchCarBookingsForDate(getBookcarClient(), dateIso);
+        await postReply(event.replyToken, [
+          {
+            type: "flex",
+            altText: buildCarAltText(carData, dateIso, label),
+            contents: buildCarFlexContents(carData, dateIso, label),
+          },
+        ]);
       }
     } catch (err) {
       console.error("Failed to reply to LINE event:", err);
