@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
 import { X, Calendar, Clock, MapPin, AlignLeft, User, Info, Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { EventData, Group } from "../types";
 import {
@@ -80,6 +80,8 @@ export default function EventFormModal({
   const [isHoliday, setIsHoliday] = useState(false);
   const [createdBy, setCreatedBy] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
+  const titleFieldRef = useRef<HTMLDivElement>(null);
 
   const [pickerYear, setPickerYear] = useState(2026);
   const [pickerMonth, setPickerMonth] = useState(6); // July
@@ -144,6 +146,47 @@ export default function EventFormModal({
     if (typeof val === "boolean") return val;
     return val === "true" || val === 1 || val === "1";
   };
+
+  // ชื่อประชุมที่ใช้บ่อย ดึงอัตโนมัติจาก events เก่า เรียงตามความถี่ (มาก→น้อย)
+  const titleSuggestions = useMemo(() => {
+    const counts = new Map<string, { label: string; count: number; lastIndex: number }>();
+    events.forEach((ev, index) => {
+      if (evtToBool(ev.is_holiday)) return;
+      const label = (ev.title || "").trim();
+      if (!label) return;
+      const key = label.toLowerCase();
+      const existing = counts.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.lastIndex = index;
+      } else {
+        counts.set(key, { label, count: 1, lastIndex: index });
+      }
+    });
+    return Array.from(counts.values())
+      .sort((a, b) => (b.count - a.count) || (b.lastIndex - a.lastIndex))
+      .slice(0, 10)
+      .map((item) => item.label);
+  }, [events]);
+
+  // กรองตามข้อความที่พิมพ์อยู่ (ถ้ามี) เพื่อให้ตัวเลือกตรงขึ้น
+  const filteredTitleSuggestions = useMemo(() => {
+    const q = title.trim().toLowerCase();
+    if (!q) return titleSuggestions;
+    return titleSuggestions.filter((s) => s.toLowerCase().includes(q) && s.toLowerCase() !== q);
+  }, [title, titleSuggestions]);
+
+  // ปิด dropdown เมื่อคลิกนอกช่องหัวข้อ
+  useEffect(() => {
+    if (!showTitleSuggestions) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (titleFieldRef.current && !titleFieldRef.current.contains(e.target as Node)) {
+        setShowTitleSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showTitleSuggestions]);
 
   if (!isOpen) return null;
 
@@ -264,15 +307,54 @@ export default function EventFormModal({
           {/* Title */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block">หัวข้อกิจกรรม / ชื่อการประชุม *</label>
-            <input 
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="เช่น ประชุมคณะกรรมการบริหารประจำเดือน..."
-              className={`w-full text-sm px-3.5 py-2 border rounded-xl outline-none transition-all ${
-                errors.title ? "border-red-500 focus:ring-2 focus:ring-red-100" : "border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
-              }`}
-            />
+            <div className="relative" ref={titleFieldRef}>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (titleSuggestions.length > 0) setShowTitleSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (titleSuggestions.length > 0) setShowTitleSuggestions(true);
+                }}
+                placeholder="เช่น ประชุมคณะกรรมการบริหารประจำเดือน..."
+                className={`w-full text-sm pl-3.5 py-2 border rounded-xl outline-none transition-all ${
+                  titleSuggestions.length > 0 ? "pr-10" : "pr-3.5"
+                } ${
+                  errors.title ? "border-red-500 focus:ring-2 focus:ring-red-100" : "border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                }`}
+              />
+              {titleSuggestions.length > 0 && (
+                <button
+                  type="button"
+                  aria-label="เลือกชื่อประชุมที่ใช้บ่อย"
+                  onClick={() => setShowTitleSuggestions((prev) => !prev)}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showTitleSuggestions ? "rotate-180" : ""}`} />
+                </button>
+              )}
+              {showTitleSuggestions && filteredTitleSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-150 rounded-xl shadow-2xl py-1 z-50 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150">
+                  <p className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">ชื่อที่ใช้บ่อย</p>
+                  {filteredTitleSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => {
+                        setTitle(suggestion);
+                        setShowTitleSuggestions(false);
+                        setErrors((prev) => ({ ...prev, title: "" }));
+                      }}
+                      className="w-full text-left text-sm px-3.5 py-2 text-slate-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {errors.title && <p className="text-xs text-red-500 font-sans">{errors.title}</p>}
           </div>
 
