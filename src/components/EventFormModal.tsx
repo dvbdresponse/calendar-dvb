@@ -51,6 +51,7 @@ interface EventFormModalProps {
   events: EventData[];
   selectedDate: string; // Prepopulates when creating
   editingEvent: EventData | null; // Prepopulates when editing
+  duplicatingEvent?: EventData | null; // Prepopulates from an existing event but saves as NEW (no id)
   currentUserName?: string;
   onSave: (event: Omit<EventData, "id" | "created_at"> & { id?: string }) => void | Promise<void>;
 }
@@ -62,6 +63,7 @@ export default function EventFormModal({
   events,
   selectedDate,
   editingEvent,
+  duplicatingEvent,
   currentUserName,
   onSave,
 }: EventFormModalProps) {
@@ -90,27 +92,30 @@ export default function EventFormModal({
   useEffect(() => {
     if (isOpen) {
       let initialDate = "";
-      if (editingEvent) {
-        setTitle(editingEvent.title);
-        setDescription(editingEvent.description || "");
-        initialDate = editingEvent.date;
-        setDate(editingEvent.date);
-        setEndDate(editingEvent.end_date || "");
-        setStartTime(editingEvent.start_time);
-        setEndTime(editingEvent.end_time);
-        setGroupId(editingEvent.group_id);
-        if (editingEvent.location && !LOCATION_OPTIONS.includes(editingEvent.location)) {
+      // แก้ไข = editingEvent, ทำซ้ำ = duplicatingEvent (prefill เหมือนกัน ต่างที่ตอน save จะไม่มี id → insert ใหม่)
+      const source = editingEvent ?? duplicatingEvent;
+      if (source) {
+        setTitle(source.title);
+        setDescription(source.description || "");
+        initialDate = source.date;
+        setDate(source.date);
+        setEndDate(source.end_date || "");
+        setStartTime(source.start_time);
+        setEndTime(source.end_time);
+        setGroupId(source.group_id);
+        if (source.location && !LOCATION_OPTIONS.includes(source.location)) {
           setLocationChoice(LOCATION_OTHER_VALUE);
-          setCustomLocation(editingEvent.location);
+          setCustomLocation(source.location);
         } else {
-          setLocationChoice(editingEvent.location || "");
+          setLocationChoice(source.location || "");
           setCustomLocation("");
         }
-        setIsOnline(evtToBool(editingEvent.is_online));
-        setOnlineLink(editingEvent.online_link || "");
-        setOnlineResource(editingEvent.online_resource || "");
-        setIsHoliday(evtToBool(editingEvent.is_holiday));
-        setCreatedBy(editingEvent.created_by || "");
+        setIsOnline(evtToBool(source.is_online));
+        setOnlineLink(source.online_link || "");
+        setOnlineResource(source.online_resource || "");
+        setIsHoliday(evtToBool(source.is_holiday));
+        // ทำซ้ำ: ผู้ลงบันทึกควรเป็นคนปัจจุบัน ไม่ใช่คนที่บันทึกต้นฉบับ
+        setCreatedBy(editingEvent ? (source.created_by || "") : (currentUserName || source.created_by || ""));
       } else {
         // Create mode
         setTitle("");
@@ -140,7 +145,7 @@ export default function EventFormModal({
         }
       }
     }
-  }, [isOpen, editingEvent, selectedDate, currentUserName, groups]);
+  }, [isOpen, editingEvent, duplicatingEvent, selectedDate, currentUserName, groups]);
 
   const evtToBool = (val: any): boolean => {
     if (typeof val === "boolean") return val;
@@ -191,9 +196,12 @@ export default function EventFormModal({
   if (!isOpen) return null;
 
   const isHolidayForm = isHoliday || editingEvent?.is_holiday;
+  const isDuplicating = !editingEvent && !!duplicatingEvent;
   const modalTitle = editingEvent
     ? (isHolidayForm ? "แก้ไขวันหยุด" : "แก้ไขกิจกรรมการประชุม")
-    : (isHolidayForm ? "เพิ่มวันหยุดใหม่" : "เพิ่มกิจกรรมการประชุมใหม่");
+    : isDuplicating
+      ? (isHolidayForm ? "ทำซ้ำวันหยุด" : "ทำซ้ำกิจกรรมการประชุม")
+      : (isHolidayForm ? "เพิ่มวันหยุดใหม่" : "เพิ่มกิจกรรมการประชุมใหม่");
   const submitLabel = editingEvent
     ? (isHolidayForm ? "บันทึกวันหยุด" : "บันทึกการแก้ไข")
     : (isHolidayForm ? "บันทึกวันหยุด" : "บันทึกกิจกรรม");
@@ -303,7 +311,17 @@ export default function EventFormModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4 max-h-[75vh]">
-          
+
+          {/* Duplicate hint: prefilled from an existing event, just change the date */}
+          {isDuplicating && (
+            <div className="flex items-start gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3.5 py-2.5">
+              <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-indigo-700 font-sans leading-relaxed">
+                คัดลอกข้อมูลจากกิจกรรมเดิมมาให้แล้ว — แก้ไข<strong className="font-bold">วันที่</strong>ให้เป็นรอบใหม่ แล้วกดบันทึกเป็นกิจกรรมใหม่ได้เลย
+              </p>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block">หัวข้อกิจกรรม / ชื่อการประชุม *</label>

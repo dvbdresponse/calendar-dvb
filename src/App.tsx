@@ -201,6 +201,7 @@ export default function App() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isGroupManagerModalOpen, setIsGroupManagerModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventData | null>(null);
+  const [duplicatingEvent, setDuplicatingEvent] = useState<EventData | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
 
@@ -674,6 +675,7 @@ export default function App() {
             return;
           }
           setEditingEvent(null);
+          setDuplicatingEvent(null);
           setIsEventModalOpen(true);
         }}
         onOpenGroupManagerModal={() => {
@@ -856,7 +858,14 @@ export default function App() {
             onSelectDate={setSelectedDate}
             onEditEvent={(evt) => {
               if (!ensureCanWriteEvent(evt)) return;
+              setDuplicatingEvent(null);
               setEditingEvent(evt);
+              setIsEventModalOpen(true);
+            }}
+            onDuplicateEvent={(evt) => {
+              if (!ensureCanWriteEvent(evt)) return;
+              setEditingEvent(null);
+              setDuplicatingEvent(evt);
               setIsEventModalOpen(true);
             }}
             onDeleteEvent={handleDeleteEvent}
@@ -883,11 +892,13 @@ export default function App() {
         onClose={() => {
           setIsEventModalOpen(false);
           setEditingEvent(null);
+          setDuplicatingEvent(null);
         }}
         groups={groups}
         events={events}
         selectedDate={selectedDate}
         editingEvent={editingEvent}
+        duplicatingEvent={duplicatingEvent}
         currentUserName={user?.name}
         onSave={handleSaveEvent}
       />

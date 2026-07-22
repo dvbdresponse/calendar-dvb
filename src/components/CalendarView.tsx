@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox, Copy } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 import { getOnlineResourceDescription, getOnlineResourceLabel } from "../utils/booking";
@@ -28,6 +28,7 @@ interface CalendarViewProps {
   selectedDate: string; // YYYY-MM-DD
   onSelectDate: (date: string) => void;
   onEditEvent: (event: EventData) => void;
+  onDuplicateEvent: (event: EventData) => void;
   onDeleteEvent: (id: string) => void;
   activeGroupFilters: string[];
   onToggleGroupFilter: (groupId: string) => void;
@@ -42,6 +43,7 @@ export default function CalendarView({
   selectedDate,
   onSelectDate,
   onEditEvent,
+  onDuplicateEvent,
   onDeleteEvent,
   activeGroupFilters,
   onToggleGroupFilter,
@@ -897,6 +899,16 @@ export default function CalendarView({
                                         แก้ไข
                                       </button>
                                       <button
+                                        id={`agenda-duplicate-event-${evt.id}-btn`}
+                                        type="button"
+                                        onClick={() => onDuplicateEvent(evt)}
+                                        title="ทำซ้ำกิจกรรมนี้เป็นรอบใหม่"
+                                        className="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-2 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                        ทำซ้ำ
+                                      </button>
+                                      <button
                                         id={`agenda-delete-event-${evt.id}-btn`}
                                         type="button"
                                         onClick={() => onDeleteEvent(evt.id)}
@@ -1173,6 +1185,16 @@ export default function CalendarView({
                         className="text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150 transition-colors"
                       >
                         แก้ไข
+                      </button>
+                      <button
+                        id={`duplicate-event-${evt.id}-btn`}
+                        type="button"
+                        onClick={() => onDuplicateEvent(evt)}
+                        title="ทำซ้ำกิจกรรมนี้เป็นรอบใหม่"
+                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-slate-150 transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                        ทำซ้ำ
                       </button>
                       <button
                         id={`delete-event-${evt.id}-btn`}
