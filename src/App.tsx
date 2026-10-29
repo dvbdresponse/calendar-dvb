@@ -936,6 +936,12 @@ export default function App() {
         )}
       </main>
 
+      <footer className="mx-auto max-w-7xl px-4 pb-4 text-right sm:px-6">
+        <a href="https://lordicon.com/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-xs text-slate-600 underline underline-offset-4 hover:text-slate-900">
+          Animated icons by Lordicon.com<span className="sr-only"> (เปิดแท็บใหม่)</span>
+        </a>
+      </footer>
+
       <GroupManagerModal
         isOpen={isGroupManagerModalOpen}
         onClose={() => setIsGroupManagerModalOpen(false)}

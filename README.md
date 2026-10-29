@@ -52,6 +52,10 @@ Meetings support one PDF participant list up to 2 MiB (2,097,152 bytes). Files a
 
 A Supabase Edge Function can send a daily summary of the day's events to a LINE group each morning. See [docs/line-notifications.md](docs/line-notifications.md) for setup — this is optional and lives entirely in Supabase (secrets + a scheduled function), no frontend `.env` changes needed.
 
+## Header Icon
+
+The header uses the [Bee icon by Lordicon](https://lordicon.com/icons/wired/lineal/1148-bee), hosted locally in `src/assets/lordicon/`. The original Lottie animation is 60 fps and plays with `@lordicon/element`, which respects reduced motion. A local SVG appears while the player loads or if loading fails. The footer includes the [required free-license attribution](https://lordicon.com/docs/license/attribution).
+
 ## Checks
 
 ```bash

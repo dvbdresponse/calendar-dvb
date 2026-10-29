@@ -42,39 +42,33 @@
 .event-copy p { font-size: 0.875rem; }
 .event-copy :where(strong, a) { overflow-wrap: anywhere; }
 
+.calendar-event-card__actions > :is(a, [role="status"]) {
+  width: 100%;
+  max-width: none;
+}
+.calendar-event-card button { min-height: 2.75rem; }
+
 .calendar-event-preview {
   max-height: min(22rem, calc(100dvh - 1rem));
   overflow-wrap: anywhere;
 }
 
-.mosquito-icon { overflow: visible; }
-.mosquito-icon__flight,
-.mosquito-icon__wing {
-  transform-box: view-box;
-  transform-origin: 24px 23px;
-  will-change: transform;
+.bee-icon {
+  position: relative;
+  display: block;
+  width: 2rem;
+  height: 2rem;
 }
-.mosquito-icon__flight {
-  animation: mosquito-hover 2.4s ease-in-out infinite;
+.bee-icon__still, .bee-icon__player {
+  position: absolute;
+  inset: -0.25rem;
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
 }
-.mosquito-icon__wing--left {
-  animation: mosquito-wing-left 180ms ease-in-out infinite alternate;
-}
-.mosquito-icon__wing--right {
-  animation: mosquito-wing-right 180ms ease-in-out infinite alternate;
-}
-@keyframes mosquito-hover {
-  0%, 100% { transform: translateY(0.5px) rotate(-2deg); }
-  50% { transform: translateY(-1px) rotate(2deg); }
-}
-@keyframes mosquito-wing-left {
-  from { transform: rotate(-14deg) scaleY(0.82); }
-  to { transform: rotate(12deg) scaleY(1); }
-}
-@keyframes mosquito-wing-right {
-  from { transform: rotate(14deg) scaleY(0.82); }
-  to { transform: rotate(-12deg) scaleY(1); }
-}
+.bee-icon__player { visibility: hidden; }
+.bee-icon__player:state(ready) { visibility: visible; }
+.bee-icon:has(.bee-icon__player:state(ready)) .bee-icon__still { visibility: hidden; }
 
 .calendar-surface [id^="cell-"]:focus-visible {
   outline-offset: -3px;
@@ -109,10 +103,6 @@
     transition: none;
   }
   .animate-pulse, .animate-spin { animation: none; }
-  .mosquito-icon__flight, .mosquito-icon__wing {
-    animation: none;
-    will-change: auto;
-  }
 }
 
 /* Hide scrollbars for neat custom calendar cells */

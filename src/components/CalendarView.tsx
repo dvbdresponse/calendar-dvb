@@ -1,17 +1,9 @@
-import { useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox, Copy } from "lucide-react";
+import { Fragment, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Video, Calendar, List, CalendarDays, Filter, Inbox } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
-import { getOnlineResourceDescription, getOnlineResourceLabel } from "../utils/booking";
-import ParticipantPdfActions from "./ParticipantPdfActions";
-import MeetingLink from "./MeetingLink";
+import CalendarEventCard from "./CalendarEventCard";
 import CalendarEventPreview, { CalendarPreview } from "./CalendarEventPreview";
-
-const getOnlinePlatformLabel = (platform?: string) => {
-  if (platform === "zoom") return "Zoom";
-  if (platform === "webex") return "Webex";
-  return platform ? "กำหนดเอง" : "";
-};
 
 interface UnifiedHoliday {
   name: string;
@@ -690,7 +682,7 @@ export default function CalendarView({
             </div>
           </>
         ) : (
-          <div className="p-4 sm:p-6 bg-slate-50/20">
+          <div className="p-2 sm:p-6 bg-slate-50/20">
             {/* Agenda Sub-Tabs Switcher */}
             <div className="flex border-b border-slate-200 mb-5 pb-0.5 gap-6">
               <button
@@ -735,7 +727,7 @@ export default function CalendarView({
                     return (
                       <div 
                         key={item.dateStr}
-                        className={`bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-sm/5 ${
+                        className={`bg-white rounded-2xl border-0 sm:border transition-all duration-200 p-0 sm:p-5 shadow-none sm:shadow-sm/5 ${
                           isToday 
                             ? "border-red-200 ring-2 ring-red-100/30 bg-red-50/5" 
                             : "border-slate-100 hover:border-slate-200"
@@ -762,136 +754,25 @@ export default function CalendarView({
 
                         {/* Day's Events List */}
                         <div className="space-y-3.5">
-                          {item.dayEvents.map((evt) => {
-                            const group = groups.find(g => g.id === evt.group_id);
-                            return (
-                              <div
-                                key={evt.id}
-                                className={`flex flex-col md:flex-row md:items-start justify-between gap-4 p-4 rounded-xl border transition-all duration-150 relative bg-white ${
-                                  group ? "hover:shadow-sm/5 border-l-4" : "border-slate-100"
-                                }`}
-                                style={group ? { borderLeftColor: getGroupPalette(group.color).color } : undefined}
-                              >
-                                <div className="event-copy space-y-2 flex-1 min-w-0">
-                                  {/* Badges line */}
-                                  <div className="flex flex-wrap items-center gap-2 text-xs font-sans">
-                                    {evt.start_time && evt.end_time ? (
-                                      <span className="flex items-center gap-1.25 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
-                                        <Clock className="w-3 h-3 text-red-500" />
-                                        {evt.start_time} - {evt.end_time} น.
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center gap-1.25 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-[11px]">
-                                        <Clock className="w-3 h-3 text-emerald-500" />
-                                        ตลอดทั้งวัน
-                                      </span>
-                                    )}
-                                    {evt.end_date && evt.end_date !== evt.date && (
-                                      <span className="flex items-center gap-1.25 font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md text-[11px]">
-                                        <Calendar className="w-3 h-3 text-red-500" />
-                                        ต่อเนื่อง: {formatSelectedDateThaiWithDay(evt.date).split(' ')[0]} {formatSelectedDateThaiWithDay(evt.date).split(' ')[1]} - {formatSelectedDateThaiWithDay(evt.end_date).split(' ')[0]} {formatSelectedDateThaiWithDay(evt.end_date).split(' ')[1]}
-                                      </span>
-                                    )}
-                                    
-                                    {group && (
-                                      <span className="font-bold px-2 py-0.5 rounded-md border text-[11px]" style={getGroupBadgeStyle(group)}>
-                                        {group.name}
-                                      </span>
-                                    )}
-
-                                    {evt.is_online ? (
-                                      <span className="font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1 text-[11px]">
-                                        <Video className="w-3 h-3 text-emerald-500" />
-                                        ออนไลน์ {getOnlinePlatformLabel(evt.online_platform) ? `(${getOnlinePlatformLabel(evt.online_platform)})` : ''}
-                                      </span>
-                                    ) : (
-                                      <span className="font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 text-[11px]">
-                                        <MapPin className="w-3 h-3 text-blue-500" />
-                                        ออนไซต์
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {/* Title & Description */}
-                                  <div>
-                                    <h5 className="text-sm font-bold text-slate-800 font-sans leading-snug">
-                                      {evt.title}
-                                    </h5>
-                                    {evt.description && (
-                                      <p className="text-xs text-slate-500 font-sans mt-1 line-clamp-2 leading-relaxed bg-slate-50/30 p-2 rounded-lg border border-slate-100/60">
-                                        {evt.description}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  {evt.participant_pdf_path && <ParticipantPdfActions path={evt.participant_pdf_path} canRead={isLoggedIn} onOpen={onOpenParticipantPdf} />}
-
-                                  {/* Metadata footer */}
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-slate-50 text-sm text-slate-600 font-sans">
-                                    <span className="flex items-center gap-1">
-                                      <MapPin className="w-3.5 h-3.5" />
-                                      สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ได้ระบุสถานที่"}</strong>
-                                    </span>
-                                    {evt.is_online && evt.online_link && (
-                                      <span className="flex min-w-0 flex-wrap items-center gap-1">
-                                        <span className="inline-flex shrink-0 items-center gap-1"><Video className="w-3.5 h-3.5" />ลิงก์ออนไลน์:</span>
-                                        <MeetingLink link={evt.online_link} meeting={evt} />
-                                      </span>
-                                    )}
-                                    {evt.is_online && evt.online_resource && (
-                                      <span className="flex items-center gap-1">
-                                        <Video className="w-3.5 h-3.5" />
-                                        จอง {getOnlineResourceLabel(evt.online_resource)}:
-                                        <strong className="text-slate-600 font-medium">
-                                          {getOnlineResourceDescription(evt.online_resource)}
-                                        </strong>
-                                      </span>
-                                    )}
-                                    <span className="flex items-center gap-1">
-                                      <User className="w-3.5 h-3.5" />
-                                      ผู้ลงบันทึก: <strong className="text-slate-600 font-medium">{evt.created_by || "ผู้ดูแลระบบ"}</strong>
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {/* Join Online Meeting link & Actions */}
-                                <div className="flex flex-wrap items-center gap-2 shrink-0 md:border-l md:border-slate-100 md:pl-4 self-stretch justify-end md:flex-col md:justify-center">
-                                  {evt.is_online && evt.online_link && <MeetingLink link={evt.online_link} meeting={evt} button />}
-                                  
-                                  {isLoggedIn && canManageEvent(evt) && (
-                                    <div className="flex items-center gap-1.5 w-full">
-                                      <button
-                                        id={`agenda-edit-event-${evt.id}-btn`}
-                                        type="button"
-                                        onClick={() => onEditEvent(evt)}
-                                        className="flex-1 text-center text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                                      >
-                                        แก้ไข
-                                      </button>
-                                      <button
-                                        id={`agenda-duplicate-event-${evt.id}-btn`}
-                                        type="button"
-                                        onClick={() => onDuplicateEvent(evt)}
-                                        title="ทำซ้ำกิจกรรมนี้เป็นรอบใหม่"
-                                        className="flex-1 flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-2 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                                      >
-                                        <Copy className="w-3 h-3" />
-                                        ทำซ้ำ
-                                      </button>
-                                      <button
-                                        id={`agenda-delete-event-${evt.id}-btn`}
-                                        type="button"
-                                        onClick={() => onDeleteEvent(evt.id)}
-                                        className="flex-1 text-center text-[11px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                                      >
-                                        ลบ
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {item.dayEvents.map((evt) => (
+                            <Fragment key={evt.id}>
+                              <CalendarEventCard
+                                event={evt}
+                                group={groups.find(group => group.id === evt.group_id)}
+                                view="agenda"
+                                occurrenceDate={item.dateStr}
+                                dateRangeLabel={evt.end_date && evt.end_date !== evt.date
+                                  ? `${formatSelectedDateThai(evt.date)} - ${formatSelectedDateThai(evt.end_date)}`
+                                  : undefined}
+                                isLoggedIn={isLoggedIn}
+                                canManage={canManageEvent(evt)}
+                                onEdit={onEditEvent}
+                                onDuplicate={onDuplicateEvent}
+                                onDelete={onDeleteEvent}
+                                onOpenParticipantPdf={onOpenParticipantPdf}
+                              />
+                            </Fragment>
+                          ))}
                         </div>
                       </div>
                     );
@@ -1001,7 +882,7 @@ export default function CalendarView({
 
       {/* 3. Detail Section for Selected Date */}
       {viewMode === "calendar" && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
           <div>
             <span className="text-xs font-bold text-red-600 uppercase tracking-wide font-sans bg-red-50 border border-red-200 rounded-lg px-2.5 py-1 inline-block mb-1.5">
@@ -1056,128 +937,25 @@ export default function CalendarView({
           emptyMeetings("day")
         ) : (
           <div className="space-y-3.5">
-            {getEventsForDate(selectedDate).map((evt) => {
-              const group = groups.find(g => g.id === evt.group_id);
-              return (
-                <div
-                  id={`event-item-${evt.id}`}
-                  key={evt.id}
-                  className="group relative flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 bg-white hover:border-slate-200/80 transition-all shadow-sm/5"
-                >
-                  {/* Left block: Minimalist Accent color line */}
-                  <div 
-                    className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-full" 
-                    style={{ backgroundColor: getGroupPalette(group?.color).color }}
-                  />
-
-                  {/* Middle content */}
-                  <div className="event-copy min-w-0 pl-1.5 space-y-1.5 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Start-End Time badge */}
-                      {evt.start_time && evt.end_time ? (
-                        <span className="text-[11px] font-bold font-sans bg-slate-50 text-slate-700 border border-slate-100 px-2 py-0.5 rounded-lg">
-                          {evt.start_time} - {evt.end_time} น.
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-bold font-sans bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-lg">
-                          ตลอดทั้งวัน
-                        </span>
-                      )}
-
-                      {/* Group label */}
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase ${group ? "" : "bg-slate-50 border-slate-100 text-slate-500"}`}
-                        style={group ? getGroupBadgeStyle(group) : undefined}
-                      >
-                        {group?.name || "ไม่ระบุฝ่าย"}
-                      </span>
-
-                      {/* Online/On-site badge */}
-                      {evt.is_online ? (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-emerald-50/60 text-emerald-700 border border-emerald-100/50 flex items-center gap-1">
-                          <Video className="w-3 h-3 text-emerald-600" />
-                          ออนไลน์ {getOnlinePlatformLabel(evt.online_platform) ? `(${getOnlinePlatformLabel(evt.online_platform)})` : ''}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-indigo-50/60 text-indigo-700 border border-indigo-100/50 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-indigo-600" />
-                          ออนไซต์ (ในสถานที่)
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="text-sm font-bold text-slate-900 font-sans">
-                      {evt.title}
-                    </h4>
-
-                    {evt.description && (
-                      <p className="text-xs text-slate-500 leading-relaxed max-w-4xl font-sans bg-slate-50/40 p-2 rounded-lg border border-slate-100/60">
-                        {evt.description}
-                      </p>
-                    )}
-
-                    {evt.participant_pdf_path && <ParticipantPdfActions path={evt.participant_pdf_path} canRead={isLoggedIn} onOpen={onOpenParticipantPdf} />}
-
-                    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-sm text-slate-600 font-sans">
-                      <span className="flex items-center gap-1 text-slate-600">
-                        <MapPin className="w-3 h-3 text-slate-600" />
-                        สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ระบุสถานที่"}</strong>
-                      </span>
-                      {evt.is_online && evt.online_link && (
-                        <span className="flex min-w-0 flex-wrap items-center gap-1 text-slate-600">
-                          <span className="inline-flex shrink-0 items-center gap-1"><Video className="w-3 h-3 text-slate-600" />ลิงก์ออนไลน์:</span>
-                          <MeetingLink link={evt.online_link} meeting={evt} />
-                        </span>
-                      )}
-                      {evt.is_online && evt.online_resource && (
-                        <span className="flex items-center gap-1 text-slate-600">
-                          <Video className="w-3 h-3 text-slate-600" />
-                          จอง {getOnlineResourceLabel(evt.online_resource)}:
-                          <strong className="text-slate-600 font-medium">{getOnlineResourceDescription(evt.online_resource)}</strong>
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1 text-slate-600">
-                        <User className="w-3 h-3 text-slate-600" />
-                        ผู้ลงบันทึก: <strong className="text-slate-600 font-medium">{evt.created_by || "ผู้ดูแลระบบ"}</strong>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions right buttons */}
-                  {isLoggedIn && canManageEvent(evt) && (
-                    <div className="flex items-center justify-end gap-1.5 shrink-0 md:border-l md:border-slate-100 md:pl-3.5">
-                      <button
-                        id={`edit-event-${evt.id}-btn`}
-                        type="button"
-                        onClick={() => onEditEvent(evt)}
-                        className="text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
-                      >
-                        แก้ไข
-                      </button>
-                      <button
-                        id={`duplicate-event-${evt.id}-btn`}
-                        type="button"
-                        onClick={() => onDuplicateEvent(evt)}
-                        title="ทำซ้ำกิจกรรมนี้เป็นรอบใหม่"
-                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
-                      >
-                        <Copy className="w-3 h-3" />
-                        ทำซ้ำ
-                      </button>
-                      <button
-                        id={`delete-event-${evt.id}-btn`}
-                        type="button"
-                        onClick={() => onDeleteEvent(evt.id)}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50/50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
-                      >
-                        ลบ
-                      </button>
-                    </div>
-                  )}
-
-                </div>
-              );
-            })}
+            {getEventsForDate(selectedDate).map((evt) => (
+              <Fragment key={evt.id}>
+                <CalendarEventCard
+                  event={evt}
+                  group={groups.find(group => group.id === evt.group_id)}
+                  view="day"
+                  occurrenceDate={selectedDate}
+                  dateRangeLabel={evt.end_date && evt.end_date !== evt.date
+                    ? `${formatSelectedDateThai(evt.date)} - ${formatSelectedDateThai(evt.end_date)}`
+                    : undefined}
+                  isLoggedIn={isLoggedIn}
+                  canManage={canManageEvent(evt)}
+                  onEdit={onEditEvent}
+                  onDuplicate={onDuplicateEvent}
+                  onDelete={onDeleteEvent}
+                  onOpenParticipantPdf={onOpenParticipantPdf}
+                />
+              </Fragment>
+            ))}
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SupabaseConfig, UserSession } from "../types";
 import { LogOut, LogIn, Shield, User, Tag, Menu, X, Plus, ClipboardList, Search } from "lucide-react";
-import MosquitoIcon from "./MosquitoIcon";
+import BeeIcon from "./BeeIcon";
 
 interface HeaderProps {
   searchTerm: string;
@@ -90,11 +90,11 @@ export default function Header({
           {/* Logo & Title */}
           <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
             <div className="p-1.5 sm:p-2 bg-red-50 rounded-2xl flex items-center justify-center shrink-0 border border-red-100 mt-0.5 sm:mt-0">
-              <MosquitoIcon />
+              <BeeIcon />
             </div>
             <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
               <h1 className="text-sm sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-snug">
-                ปฏิทิน กองโรคติดต่อนำโดยแมลง
+                ปฏิทินกองโรคติดต่อนำโดยแมลง
               </h1>
               <p className="text-xs text-slate-600 font-sans mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="hidden md:inline">ระบบรวมตารางงานประชุมและประสานงานกลุ่มงานต่าง ๆ</span>
