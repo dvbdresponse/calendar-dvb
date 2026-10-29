@@ -1,4 +1,4 @@
-# ALC Calendar
+# ปฏิทิน กองโรคติดต่อนำโดยแมลง
 
 React + Vite calendar app for office meeting schedules. The app supports two modes:
 
@@ -43,6 +43,10 @@ VALUES ('USER_UUID_FROM_AUTH_USERS', 'user@example.go.th', 'เจ้าหน�
 ```
 
 The SQL enables RLS. Calendar events and groups are publicly readable. Creating, updating, deleting, and managing groups require a signed-in Supabase Auth user.
+
+## Participant PDF Attachments
+
+Meetings support one PDF participant list up to 2 MiB (2,097,152 bytes). Files are private in Supabase Storage and require a signed-in user to open or download. Existing projects must run the PDF-specific SQL from database settings once. Local demo attachments use IndexedDB in the current browser. See [setup and behavior](docs/participant-pdfs.md).
 
 ## LINE Daily Digest Notifications
 

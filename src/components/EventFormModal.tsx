@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, FormEvent } from "react";
-import { X, Calendar, Clock, MapPin, AlignLeft, User, Info, Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { X, Calendar, Clock, MapPin, AlignLeft, User, Info, Check, ChevronLeft, ChevronRight, ChevronDown, Paperclip, LoaderCircle, FileText } from "lucide-react";
 import { EventData, Group } from "../types";
+import { ParticipantPdfChange, validateParticipantPdf } from "../utils/participantPdf";
+import ParticipantPdfActions from "./ParticipantPdfActions";
 import {
   findBookingConflict,
   getOnlineResourceDescription,
@@ -11,16 +13,7 @@ import {
   ONLINE_RESOURCES,
 } from "../utils/booking";
 
-const EXTERNAL_ROOMS = [
-  "ห้องประชุม ประเมินจันทวิมล อาคาร 1 ชั้น 1 กรมควบคุมโรค",
-  "ห้องประชุม อายุรกิจโกศล อาคาร 1 ชั้น 2 กรมควบคุมโรค",
-  "ห้องประชุม ประยูรกุนาศล อาคาร 1 ชั้น 3 กรมควบคุมโรค",
-  "ห้องประชุม อาคาร 10 ชั้น 7 กรมควบคุมโรค",
-  "ห้องประชุมชัยนาทนเรนทร",
-];
-
 const LOCATION_OTHER_VALUE = "__other__";
-const LOCATION_OPTIONS = [...OFFICE_BOOKABLE_ROOMS, ...EXTERNAL_ROOMS];
 
 const formatThaiDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -53,7 +46,9 @@ interface EventFormModalProps {
   editingEvent: EventData | null; // Prepopulates when editing
   duplicatingEvent?: EventData | null; // Prepopulates from an existing event but saves as NEW (no id)
   currentUserName?: string;
-  onSave: (event: Omit<EventData, "id" | "created_at"> & { id?: string }) => void | Promise<void>;
+  isLocalMode: boolean;
+  onOpenParticipantPdf: (path: string, download?: boolean) => Promise<void>;
+  onSave: (event: Omit<EventData, "id" | "created_at"> & { id?: string }, attachment: ParticipantPdfChange) => Promise<boolean>;
 }
 
 export default function EventFormModal({
@@ -65,6 +60,8 @@ export default function EventFormModal({
   editingEvent,
   duplicatingEvent,
   currentUserName,
+  isLocalMode,
+  onOpenParticipantPdf,
   onSave,
 }: EventFormModalProps) {
   const [title, setTitle] = useState("");
@@ -84,6 +81,13 @@ export default function EventFormModal({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
   const titleFieldRef = useRef<HTMLDivElement>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [removePdf, setRemovePdf] = useState(false);
+  const [checkingPdf, setCheckingPdf] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const pdfSelectionRef = useRef(0);
+  const savingRef = useRef(false);
 
   const [pickerYear, setPickerYear] = useState(2026);
   const [pickerMonth, setPickerMonth] = useState(6); // July
@@ -103,7 +107,7 @@ export default function EventFormModal({
         setStartTime(source.start_time);
         setEndTime(source.end_time);
         setGroupId(source.group_id);
-        if (source.location && !LOCATION_OPTIONS.includes(source.location)) {
+        if (source.location && !OFFICE_BOOKABLE_ROOMS.includes(source.location)) {
           setLocationChoice(LOCATION_OTHER_VALUE);
           setCustomLocation(source.location);
         } else {
@@ -135,6 +139,11 @@ export default function EventFormModal({
         setCreatedBy(currentUserName || "");
       }
       setErrors({});
+      setPdfFile(null);
+      setRemovePdf(false);
+      setCheckingPdf(false);
+      pdfSelectionRef.current += 1;
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
       setPickerType(null);
 
       if (initialDate) {
@@ -193,6 +202,27 @@ export default function EventFormModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showTitleSuggestions]);
 
+  const handlePdfSelection = async (file?: File) => {
+    const selection = ++pdfSelectionRef.current;
+    setPdfFile(null);
+    setErrors((previous) => ({ ...previous, attachment: "", submit: "" }));
+    if (!file) {
+      setCheckingPdf(false);
+      return;
+    }
+    setCheckingPdf(true);
+    try {
+      const error = await validateParticipantPdf(file);
+      if (selection !== pdfSelectionRef.current) return;
+      if (error) setErrors((previous) => ({ ...previous, attachment: error }));
+      else setPdfFile(file);
+    } catch {
+      if (selection === pdfSelectionRef.current) setErrors((previous) => ({ ...previous, attachment: "อ่านไฟล์ไม่ได้ กรุณาเลือกไฟล์ใหม่" }));
+    } finally {
+      if (selection === pdfSelectionRef.current) setCheckingPdf(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const isHolidayForm = isHoliday || editingEvent?.is_holiday;
@@ -229,6 +259,7 @@ export default function EventFormModal({
   const validate = () => {
     const isMultiDay = endDate && endDate !== date;
     const newErrors: { [key: string]: string } = {};
+    if (errors.attachment && !isHolidayForm) newErrors.attachment = errors.attachment;
     if (!title.trim()) newErrors.title = "กรุณากรอกหัวข้อกิจกรรมการประชุม";
     if (!date) newErrors.date = "กรุณาระบุวันที่จัดกิจกรรม";
     if (endDate && endDate < date) newErrors.endDate = "วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น";
@@ -261,11 +292,15 @@ export default function EventFormModal({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (savingRef.current || checkingPdf) return;
     if (!validate()) return;
+    savingRef.current = true;
+    setIsSaving(true);
 
     const isMultiDay = endDate && endDate !== date;
 
-    await onSave({
+    try {
+      const success = await onSave({
       id: editingEvent?.id,
       title: title.trim(),
       description: description.trim(),
@@ -281,27 +316,39 @@ export default function EventFormModal({
       online_resource: isOnline ? onlineResource : "",
       is_holiday: isHoliday,
       created_by: createdBy.trim(),
-    });
-    
-    onClose();
+      }, { file: isHolidayForm ? null : pdfFile, remove: removePdf });
+      if (success) onClose();
+      else setErrors((previous) => ({ ...previous, submit: "ยังบันทึกไม่สำเร็จ ข้อมูลและไฟล์ที่เลือกยังอยู่ กรุณาตรวจข้อความแจ้งเตือนแล้วลองอีกครั้ง" }));
+    } catch {
+      setErrors((previous) => ({ ...previous, submit: "บันทึกไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง" }));
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
       <div 
         id="event-form-dialog"
-        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col my-8"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-form-title"
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
         {/* Header */}
         <div className="p-5 bg-gradient-to-r from-red-600 to-red-700 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            <h3 className="text-lg font-bold font-sans">
+            <h3 id="event-form-title" className="text-lg font-bold font-sans">
               {modalTitle}
             </h3>
           </div>
           <button 
             id="close-form-modal-btn"
+            type="button"
+            aria-label="ปิดฟอร์มกิจกรรม"
+            disabled={isSaving}
             onClick={onClose} 
             className="text-white/80 hover:text-white hover:bg-white/10 rounded-lg p-1.5 transition-colors"
           >
@@ -310,7 +357,8 @@ export default function EventFormModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4 max-h-[75vh]">
+        <form id="event-form" onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-5">
+          <fieldset disabled={isSaving} className="min-w-0 space-y-4 disabled:opacity-70">
 
           {/* Duplicate hint: prefilled from an existing event, just change the date */}
           {isDuplicating && (
@@ -807,11 +855,6 @@ export default function EventFormModal({
                   <option key={room} value={room}>{room}</option>
                 ))}
               </optgroup>
-              <optgroup label="ห้องประชุมภายนอก">
-                {EXTERNAL_ROOMS.map((room) => (
-                  <option key={room} value={room}>{room}</option>
-                ))}
-              </optgroup>
               <option value={LOCATION_OTHER_VALUE}>อื่นๆ</option>
             </select>
             {locationChoice === LOCATION_OTHER_VALUE && (
@@ -938,6 +981,59 @@ export default function EventFormModal({
 
           </div>
 
+          {!isHolidayForm && (
+            <section className="space-y-2 border-t border-slate-200 pt-4" aria-labelledby="participant-pdf-label">
+              <label id="participant-pdf-label" htmlFor="participant-pdf-input" className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                <Paperclip className="h-4 w-4 text-red-600" />
+                รายชื่อผู้เข้าร่วมประชุม
+                <span className="text-xs font-normal text-slate-600">(ไม่บังคับ)</span>
+              </label>
+              <p id="participant-pdf-help" className="text-xs leading-relaxed text-slate-600">
+                แนบ PDF ได้ 1 ไฟล์ ขนาดไม่เกิน 2 MB
+                {isLocalMode ? " · ไฟล์ทดลองเปิดได้เฉพาะในเบราว์เซอร์นี้" : " · เฉพาะผู้เข้าสู่ระบบเท่านั้นที่เปิดดูได้"}
+              </p>
+              {editingEvent?.participant_pdf_path && !removePdf && !pdfFile && (
+                <div className="space-y-2">
+                  <ParticipantPdfActions path={editingEvent.participant_pdf_path} canRead onOpen={onOpenParticipantPdf} />
+                  <button type="button" onClick={() => setRemovePdf(true)} className="min-h-9 text-xs font-medium text-red-700 underline underline-offset-4 hover:text-red-800 focus-visible:outline-2 focus-visible:outline-red-600">
+                    นำไฟล์แนบเดิมออก
+                  </button>
+                </div>
+              )}
+              {removePdf && !pdfFile && (
+                <p className="text-xs text-slate-700">
+                  จะนำไฟล์เดิมออกเมื่อบันทึกกิจกรรม
+                  <button type="button" onClick={() => setRemovePdf(false)} className="ml-2 min-h-9 font-semibold text-red-700 underline underline-offset-4">ยกเลิก</button>
+                </p>
+              )}
+              <input
+                ref={pdfInputRef}
+                id="participant-pdf-input"
+                type="file"
+                accept=".pdf,application/pdf"
+                disabled={checkingPdf || isSaving}
+                aria-describedby={`participant-pdf-help${errors.attachment ? " participant-pdf-error" : ""}`}
+                aria-invalid={!!errors.attachment}
+                onChange={(event) => handlePdfSelection(event.target.files?.[0])}
+                className="block min-h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-700 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-red-700 hover:file:bg-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-60"
+              />
+              {checkingPdf && <p role="status" className="text-xs text-slate-600">กำลังตรวจสอบไฟล์…</p>}
+              {pdfFile && (
+                <p className="flex min-w-0 items-start gap-1.5 text-xs text-slate-700">
+                  <FileText className="h-4 w-4 shrink-0 text-red-600" />
+                  <span className="min-w-0 break-all">{pdfFile.name} · {Math.max(1, Math.round(pdfFile.size / 1024))} KB{editingEvent?.participant_pdf_path ? " · จะแทนที่ไฟล์เดิมเมื่อบันทึก" : ""}</span>
+                </p>
+              )}
+              {(pdfFile || errors.attachment) && (
+                <button type="button" onClick={() => { handlePdfSelection(); if (pdfInputRef.current) pdfInputRef.current.value = ""; }} className="min-h-9 text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-red-700">
+                  ล้างไฟล์ที่เลือก
+                </button>
+              )}
+              {isDuplicating && duplicatingEvent?.participant_pdf_path && <p className="text-xs text-slate-600">กิจกรรมรอบใหม่ต้องแนบรายชื่อใหม่</p>}
+              {errors.attachment && <p id="participant-pdf-error" role="alert" className="text-xs text-red-700">{errors.attachment}</p>}
+            </section>
+          )}
+
           {/* Created By */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
@@ -956,6 +1052,8 @@ export default function EventFormModal({
             {errors.createdBy && <p className="text-xs text-red-500 font-sans">{errors.createdBy}</p>}
           </div>
 
+          {errors.submit && <p role="alert" className="text-xs leading-relaxed text-red-700">{errors.submit}</p>}
+          </fieldset>
         </form>
 
         {/* Footer */}
@@ -963,6 +1061,7 @@ export default function EventFormModal({
           <button
             id="cancel-form-btn"
             type="button"
+            disabled={isSaving}
             onClick={onClose}
             className="text-sm px-4 py-2 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-colors"
           >
@@ -971,13 +1070,13 @@ export default function EventFormModal({
           <button
             id="submit-form-btn"
             type="submit"
-            onClick={handleSubmit}
-            disabled={!!bookingConflict}
-            className={`text-sm px-6 py-2 rounded-xl text-white font-semibold shadow-md shadow-red-600/15 transition-all ${
+            form="event-form"
+            disabled={!!bookingConflict || isSaving || checkingPdf}
+            className={`text-sm px-6 py-2 rounded-xl text-white font-semibold shadow-md shadow-red-600/15 transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
               bookingConflict ? "bg-slate-300 cursor-not-allowed shadow-none" : "bg-red-600 hover:bg-red-700"
             }`}
           >
-            {submitLabel}
+            {isSaving ? <span className="inline-flex items-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />กำลังบันทึก…</span> : submitLabel}
           </button>
         </div>
       </div>

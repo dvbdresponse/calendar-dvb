@@ -80,7 +80,7 @@ export default function Header({
             <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
                 <h1 className="text-[13px] sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-tight">
-                  ปฏิทินสำนักงานคณะกรรมการควบคุมเครื่องดื่มแอลกอฮอล์
+                  ปฏิทิน กองโรคติดต่อนำโดยแมลง
                 </h1>
                 
                 {/* Connection Status Badge */}

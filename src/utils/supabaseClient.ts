@@ -1,5 +1,6 @@
 import { createClient, Session, SupabaseClient } from "@supabase/supabase-js";
 import { Group, SupabaseConfig, UserSession } from "../types";
+import { buildParticipantPdfSql } from "./participantPdfSchema";
 
 const CONFIG_KEY = "gov_calendar_supabase_config";
 
@@ -314,4 +315,5 @@ CREATE POLICY "Authenticated users delete events" ON public.events
 -- Example profile row:
 -- INSERT INTO public.profiles (id, email, display_name, role)
 -- VALUES ('USER_UUID_FROM_AUTH_USERS', 'user@example.go.th', 'เจ้าหน้าที่ ALC', 'officer');
+${buildParticipantPdfSql()}
 `;

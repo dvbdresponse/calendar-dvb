@@ -67,7 +67,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             </div>
             <h3 className="text-base font-bold text-slate-800">เข้าสู่ระบบด้วย Supabase Auth</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-              ใช้บัญชีที่สร้างใน Supabase Authentication เพื่อเพิ่ม แก้ไข หรือลบข้อมูลใน ALC Calendar
+              ใช้บัญชีที่สร้างใน Supabase Authentication เพื่อเพิ่ม แก้ไข หรือลบข้อมูลในปฏิทิน กองโรคติดต่อนำโดยแมลง
             </p>
           </div>
 

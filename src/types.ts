@@ -24,6 +24,7 @@ export interface EventData {
   online_platform?: string;
   online_link?: string;
   online_resource?: string;
+  participant_pdf_path?: string | null;
   is_holiday: boolean;
   created_by: string;
   created_by_user_id?: string;

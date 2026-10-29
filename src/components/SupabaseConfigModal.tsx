@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Check, Copy, Database, Cloud, Wifi, AlertCircle, RefreshCw, FileText } from "lucide-react";
 import { Group, SupabaseConfig } from "../types";
 import { buildSqlSchema, checkSupabaseConnection } from "../utils/supabaseClient";
+import { buildParticipantPdfSql } from "../utils/participantPdfSchema";
 
 interface SupabaseConfigModalProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export default function SupabaseConfigModal({
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<"none" | "success" | "error">("none");
   const [copied, setCopied] = useState(false);
+  const [pdfSqlCopied, setPdfSqlCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
   const sqlSchema = buildSqlSchema(groups);
 
   useEffect(() => {
@@ -32,6 +35,8 @@ export default function SupabaseConfigModal({
       setAnonKey(currentConfig?.anonKey || "");
       setTableName(currentConfig?.tableName || "events");
       setTestResult("none");
+      setPdfSqlCopied(false);
+      setCopyError("");
     }
   }, [isOpen, currentConfig]);
 
@@ -72,6 +77,16 @@ export default function SupabaseConfigModal({
     navigator.clipboard.writeText(sqlSchema);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyPdfSql = async () => {
+    try {
+      await navigator.clipboard.writeText(buildParticipantPdfSql(tableName));
+      setPdfSqlCopied(true);
+      setCopyError("");
+    } catch {
+      setCopyError("คัดลอกอัตโนมัติไม่ได้ กรุณาเปิดดู SQL แล้วคัดลอกข้อความด้วยตนเอง");
+    }
   };
 
   return (
@@ -205,6 +220,20 @@ export default function SupabaseConfigModal({
               </div>
             )}
           </div>
+
+          <section className="space-y-3 border-t border-slate-200 pt-5" aria-labelledby="participant-storage-title">
+            <h4 id="participant-storage-title" className="text-sm font-semibold text-slate-800">เปิดใช้ไฟล์รายชื่อผู้เข้าร่วมประชุม</h4>
+            <p className="text-xs leading-relaxed text-slate-600">สำหรับฐานข้อมูลที่ใช้อยู่: คัดลอก SQL ด้านล่างไปรันใน Supabase SQL Editor หนึ่งครั้ง เพื่อเพิ่มพื้นที่แนบ PDF ส่วนตัว รองรับไฟล์ละไม่เกิน 2 MB</p>
+            <button id="copy-participant-pdf-sql-btn" type="button" onClick={handleCopyPdfSql} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+              {pdfSqlCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {pdfSqlCopied ? "คัดลอก SQL สำหรับแนบ PDF แล้ว" : "คัดลอก SQL สำหรับแนบ PDF"}
+            </button>
+            {copyError && <p role="alert" className="text-xs text-red-700">{copyError}</p>}
+            <details className="text-xs text-slate-700">
+              <summary className="cursor-pointer py-2 font-medium">ดู SQL สำหรับแนบ PDF</summary>
+              <pre className="max-h-48 overflow-auto whitespace-pre rounded-lg bg-slate-900 p-3 text-xs text-slate-100">{buildParticipantPdfSql(tableName)}</pre>
+            </details>
+          </section>
 
           {/* SQL Instructions Accordion */}
           <div className="space-y-3">

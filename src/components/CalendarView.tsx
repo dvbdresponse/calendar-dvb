@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, 
 import { EventData, Group, Holiday } from "../types";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 import { getOnlineResourceDescription, getOnlineResourceLabel } from "../utils/booking";
+import ParticipantPdfActions from "./ParticipantPdfActions";
 
 const buildMeetingHref = (link?: string) => {
   if (!link?.trim()) return "";
@@ -30,6 +31,7 @@ interface CalendarViewProps {
   onEditEvent: (event: EventData) => void;
   onDuplicateEvent: (event: EventData) => void;
   onDeleteEvent: (id: string) => void;
+  onOpenParticipantPdf: (path: string, download?: boolean) => Promise<void>;
   activeGroupFilters: string[];
   onToggleGroupFilter: (groupId: string) => void;
   onClearFilters: () => void;
@@ -45,6 +47,7 @@ export default function CalendarView({
   onEditEvent,
   onDuplicateEvent,
   onDeleteEvent,
+  onOpenParticipantPdf,
   activeGroupFilters,
   onToggleGroupFilter,
   onClearFilters,
@@ -192,8 +195,6 @@ export default function CalendarView({
     return events.filter(e => e.group_id === groupId && !e.is_holiday).length;
   };
 
-  const groupsSortedById = [...groups].sort((a, b) => a.id.localeCompare(b.id));
-
   // Generate all dates in the current month (sorted)
   const getDatesInCurrentMonth = (): string[] => {
     const dates: string[] = [];
@@ -256,7 +257,7 @@ export default function CalendarView({
 
             {/* Legend buttons */}
             <div className="flex flex-wrap gap-2">
-              {groupsSortedById.map((group) => {
+              {groups.map((group) => {
                 const isActive = activeGroupFilters.includes(group.id);
                 const count = getGroupEventCount(group.id);
                 const palette = getGroupPalette(group.color);
@@ -846,6 +847,8 @@ export default function CalendarView({
                                     )}
                                   </div>
 
+                                  {evt.participant_pdf_path && <ParticipantPdfActions path={evt.participant_pdf_path} canRead={isLoggedIn} onOpen={onOpenParticipantPdf} />}
+
                                   {/* Metadata footer */}
                                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-slate-50 text-[11px] text-slate-400 font-sans">
                                     <span className="flex items-center gap-1">
@@ -1149,6 +1152,8 @@ export default function CalendarView({
                         {evt.description}
                       </p>
                     )}
+
+                    {evt.participant_pdf_path && <ParticipantPdfActions path={evt.participant_pdf_path} canRead={isLoggedIn} onOpen={onOpenParticipantPdf} />}
 
                     <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-slate-450 font-sans">
                       <span className="flex items-center gap-1 text-slate-400">

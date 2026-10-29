@@ -20,6 +20,7 @@ import SupabaseConfigModal from "./components/SupabaseConfigModal";
 import LoginModal from "./components/LoginModal";
 import GroupManagerModal from "./components/GroupManagerModal";
 import { findBookingConflict } from "./utils/booking";
+import { getParticipantPdfUrl, PARTICIPANT_PDF_FILENAME, ParticipantPdfChange, removeParticipantPdf, uploadParticipantPdf } from "./utils/participantPdf";
 
 const MeetingStatsDashboard = lazy(() => import("./components/MeetingStatsDashboard"));
 
@@ -63,6 +64,7 @@ const normalizeEvent = (evt: any): EventData => {
     online_platform: evt.online_platform || "",
     online_link: evt.online_link || (legacyLocationLink ? location : ""),
     online_resource: evt.online_resource || "",
+    participant_pdf_path: evt.participant_pdf_path ?? undefined,
     is_holiday: evt.is_holiday === true || evt.is_holiday === "true",
     created_by: evt.created_by || "ผู้ลงบันทึก",
     created_by_user_id: evt.created_by_user_id || undefined,
@@ -122,7 +124,7 @@ const buildHolidaySeedEvents = (existingEvents: EventData[], groupList: Group[])
     } as EventData));
 };
 
-const eventToSupabasePayload = (event: Omit<EventData, "id"> & { id?: string }) => ({
+const eventToSupabasePayload = (event: Omit<EventData, "id" | "created_at"> & { id?: string; created_at?: string }) => ({
   title: event.title,
   description: event.description,
   date: event.date,
@@ -135,6 +137,7 @@ const eventToSupabasePayload = (event: Omit<EventData, "id"> & { id?: string }) 
   online_platform: event.online_platform || "",
   online_link: event.online_link || "",
   online_resource: event.online_resource || "",
+  ...(event.participant_pdf_path !== undefined ? { participant_pdf_path: event.participant_pdf_path } : {}),
   is_holiday: event.is_holiday,
   created_by: event.created_by,
   created_by_user_id: event.created_by_user_id,
@@ -405,75 +408,118 @@ export default function App() {
     }
   };
 
-  const handleSaveEvent = async (formData: Omit<EventData, "id" | "created_at"> & { id?: string }) => {
+  const cleanupParticipantPdf = async (path: string) => {
+    try {
+      await removeParticipantPdf(path, supabaseConfig);
+    } catch (error) {
+      console.error("PDF cleanup failed", error);
+      showToast("บันทึกข้อมูลแล้ว แต่ลบไฟล์ที่ไม่ได้ใช้งานไม่สำเร็จ กรุณาตรวจพื้นที่แนบไฟล์", "info");
+    }
+  };
+
+  const handleOpenParticipantPdf = async (path: string, download = false) => {
+    if (isSupabaseMode && !user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    let pdfWindow: Window | null = null;
+    try {
+      if (!download) {
+        pdfWindow = window.open("about:blank", "_blank");
+        if (!pdfWindow) throw new Error("เบราว์เซอร์บล็อกหน้าต่าง PDF กรุณาอนุญาตป๊อปอัปหรือกดดาวน์โหลด");
+        pdfWindow.opener = null;
+        pdfWindow.document.title = PARTICIPANT_PDF_FILENAME;
+        pdfWindow.document.body.textContent = "กำลังเปิดไฟล์ PDF…";
+      }
+      const url = await getParticipantPdfUrl(path, supabaseConfig, download);
+      if (pdfWindow) {
+        pdfWindow.location.href = url;
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = PARTICIPANT_PDF_FILENAME;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      if (url.startsWith("blob:")) setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error: any) {
+      pdfWindow?.close();
+      showToast(error.message || "เปิดไฟล์ PDF ไม่สำเร็จ กรุณาลองใหม่", "error");
+    }
+  };
+
+  const handleSaveEvent = async (
+    formData: Omit<EventData, "id" | "created_at"> & { id?: string },
+    attachment: ParticipantPdfChange,
+  ): Promise<boolean> => {
     const validationError = validateEventPayload(formData);
     if (validationError) {
       showToast(validationError, "error");
-      return;
+      return false;
     }
 
     const currentEvent = formData.id ? events.find((item) => item.id === formData.id) : null;
     const itemLabel = formData.is_holiday ? "วันหยุด" : "กิจกรรม";
-    if (!ensureCanWriteEvent(currentEvent)) return;
-
-    if (hasValidSupabaseConfig(supabaseConfig)) {
-      try {
-        setIsDbLoading(true);
-        const client = createDynamicSupabaseClient(supabaseConfig);
-        const tableName = supabaseConfig.tableName || "events";
-        const payload = {
-          title: formData.title,
-          description: formData.description,
-          date: formData.date,
-          end_date: formData.end_date || null,
-          start_time: formData.start_time,
-          end_time: formData.end_time,
-          group_id: formData.group_id,
-          location: formData.location,
-          is_online: formData.is_online,
-          online_platform: formData.online_platform || "",
-          online_link: formData.online_link || "",
-          online_resource: formData.online_resource || "",
-          is_holiday: formData.is_holiday,
-          created_by: formData.created_by,
-          created_by_user_id: currentEvent?.created_by_user_id || user?.id,
-        };
-
-        const { error } = formData.id
-          ? await client.from(tableName).update(payload).eq("id", formData.id)
-          : await client.from(tableName).insert([payload]);
-
-        if (error) throw error;
-
-        showToast(formData.id ? `แก้ไข${itemLabel}ใน Supabase สำเร็จ` : `เพิ่ม${itemLabel}ใน Supabase สำเร็จ`, "success");
-        await loadData(supabaseConfig, { quiet: true });
-      } catch (e: any) {
-        console.error("Supabase Save Error", e);
-        showToast(`บันทึกข้อมูลล้มเหลว: ${e.message || "เกิดข้อผิดพลาด"}`, "error");
-      } finally {
-        setIsDbLoading(false);
-      }
-      return;
-    }
+    if (!ensureCanWriteEvent(currentEvent)) return false;
+    const previousPath = currentEvent?.participant_pdf_path;
+    let uploadedPath: string | null = null;
+    let saved = false;
 
     try {
-      const updatedList = formData.id
-        ? events.map((item) => item.id === formData.id ? { ...item, ...formData } as EventData : item)
-        : [
+      setIsDbLoading(true);
+      const nextData = { ...formData };
+      if (previousPath) nextData.participant_pdf_path = previousPath;
+      if (attachment.file) {
+        uploadedPath = await uploadParticipantPdf(attachment.file, supabaseConfig);
+        nextData.participant_pdf_path = uploadedPath;
+      } else if (attachment.remove) {
+        nextData.participant_pdf_path = null;
+      }
+
+      if (hasValidSupabaseConfig(supabaseConfig)) {
+        const client = createDynamicSupabaseClient(supabaseConfig);
+        const tableName = supabaseConfig.tableName || "events";
+        const payload = eventToSupabasePayload({
+          ...nextData,
+          created_by_user_id: currentEvent?.created_by_user_id || user?.id,
+        });
+
+        const { error } = formData.id
+          ? await client.from(tableName).update(payload).eq("id", formData.id).select("id").single()
+          : await client.from(tableName).insert([payload]).select("id").single();
+
+        if (error) throw error;
+      } else {
+        const updatedList = formData.id
+          ? events.map((item) => item.id === formData.id ? { ...item, ...nextData } as EventData : item)
+          : [
             ...events,
             {
-              ...formData,
-              id: `evt-${Date.now()}`,
+              ...nextData,
+              id: `evt-${crypto.randomUUID()}`,
               created_at: new Date().toISOString(),
             } as EventData,
           ];
-
-      setEvents(updatedList);
-      localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedList));
-      showToast(formData.id ? `แก้ไข${itemLabel}ในเครื่องเรียบร้อยแล้ว` : `เพิ่ม${itemLabel}ในเครื่องเรียบร้อยแล้ว`, "success");
-    } catch (e) {
-      console.error("Local Save Error", e);
-      showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
+        localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedList));
+        setEvents(updatedList);
+      }
+      saved = true;
+      showToast(formData.id ? `แก้ไข${itemLabel}เรียบร้อยแล้ว` : `เพิ่ม${itemLabel}เรียบร้อยแล้ว`, "success");
+      if (previousPath && previousPath !== nextData.participant_pdf_path && !events.some((event) => event.id !== formData.id && event.participant_pdf_path === previousPath)) {
+        await cleanupParticipantPdf(previousPath);
+      }
+      if (hasValidSupabaseConfig(supabaseConfig)) await loadData(supabaseConfig, { quiet: true });
+      return true;
+    } catch (error: any) {
+      if (uploadedPath && !saved) await cleanupParticipantPdf(uploadedPath);
+      const message = /participant_pdf_path/i.test(error.message || "")
+        ? "กรุณารัน SQL สำหรับแนบ PDF จากหน้าตั้งค่าฐานข้อมูลก่อน แล้วกดบันทึกอีกครั้ง"
+        : error.message || "เกิดข้อผิดพลาด กรุณาลองใหม่";
+      showToast(`บันทึกข้อมูลล้มเหลว: ${message}`, "error");
+      return false;
+    } finally {
+      setIsDbLoading(false);
     }
   };
 
@@ -495,8 +541,11 @@ export default function App() {
       try {
         setIsDbLoading(true);
         const client = createDynamicSupabaseClient(supabaseConfig);
-        const { error } = await client.from(supabaseConfig.tableName || "events").delete().eq("id", id);
+        const { error } = await client.from(supabaseConfig.tableName || "events").delete().eq("id", id).select("id").single();
         if (error) throw error;
+        if (currentEvent?.participant_pdf_path && !events.some((event) => event.id !== id && event.participant_pdf_path === currentEvent.participant_pdf_path)) {
+          await cleanupParticipantPdf(currentEvent.participant_pdf_path);
+        }
         showToast(`ลบ${itemLabel}ใน Supabase สำเร็จ`, "success");
         await loadData(supabaseConfig, { quiet: true });
       } catch (e: any) {
@@ -509,8 +558,11 @@ export default function App() {
     }
 
     const updatedList = events.filter((e) => e.id !== id);
-    setEvents(updatedList);
     localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedList));
+    setEvents(updatedList);
+    if (currentEvent?.participant_pdf_path && !updatedList.some((event) => event.participant_pdf_path === currentEvent.participant_pdf_path)) {
+      await cleanupParticipantPdf(currentEvent.participant_pdf_path);
+    }
     showToast(`ลบ${itemLabel}ในเครื่องเรียบร้อยแล้ว`, "success");
   };
 
@@ -773,7 +825,7 @@ export default function App() {
               <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-amber-800 font-sans">โหมดข้อมูลในเครื่อง (Local Demo)</p>
-                <p className="text-xs text-amber-600 font-sans mt-0.5">โหมดนี้ใช้ดูข้อมูลตัวอย่างเท่านั้น การเพิ่ม แก้ไข หรือลบข้อมูลต้องเชื่อมต่อ Supabase และเข้าสู่ระบบผ่าน Supabase Auth</p>
+                <p className="text-xs text-amber-600 font-sans mt-0.5">กิจกรรมและไฟล์แนบในโหมดทดลองเก็บเฉพาะเบราว์เซอร์นี้ เชื่อมต่อ Supabase เพื่อใช้งานร่วมกัน</p>
               </div>
             </div>
             <button
@@ -869,6 +921,7 @@ export default function App() {
               setIsEventModalOpen(true);
             }}
             onDeleteEvent={handleDeleteEvent}
+            onOpenParticipantPdf={handleOpenParticipantPdf}
             activeGroupFilters={activeGroupFilters}
             onToggleGroupFilter={handleToggleGroupFilter}
             onClearFilters={() => setActiveGroupFilters([])}
@@ -900,6 +953,8 @@ export default function App() {
         editingEvent={editingEvent}
         duplicatingEvent={duplicatingEvent}
         currentUserName={user?.name}
+        isLocalMode={!isSupabaseMode}
+        onOpenParticipantPdf={handleOpenParticipantPdf}
         onSave={handleSaveEvent}
       />
 
