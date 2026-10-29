@@ -6,6 +6,77 @@
   --font-mono: ui-monospace, SFMono-Regular, monospace;
 }
 
+@layer base {
+  :where(button, a, input, select, textarea, [role="button"], summary):focus-visible {
+    outline: 2px solid var(--color-red-700);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--color-red-100);
+    color: var(--color-red-950);
+  }
+
+  input, textarea { caret-color: var(--color-red-700); }
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 200;
+  transform: translateY(-200%);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--color-slate-900);
+  color: white;
+}
+.skip-link:focus { transform: translateY(0); }
+
+.event-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.event-copy :where(span, strong, div) { min-width: 0; }
+.event-copy :where(h4, h5) { font-size: 1rem; line-height: 1.6; }
+.event-copy p { font-size: 0.875rem; }
+.event-copy :where(strong, a) { overflow-wrap: anywhere; }
+
+.calendar-surface [id^="cell-"]:focus-visible {
+  outline-offset: -3px;
+  z-index: 160;
+}
+
+.app-header button,
+.calendar-surface button,
+[id^="stats-timeframe-"],
+#toggle-stats-dashboard-btn,
+#tab-calendar-btn,
+#tab-analytics-btn {
+  min-height: 2.75rem;
+}
+.app-header button:has(> svg:only-child),
+#prev-month-btn, #next-month-btn,
+#toggle-stats-dashboard-btn { min-width: 2.75rem; }
+
+[role="dialog"] button { min-height: 2.75rem; }
+
+@media (max-width: 639px) {
+  .calendar-surface button { font-size: 0.875rem; }
+  .calendar-surface [id^="cell-mobile-"] { min-height: 2.75rem; }
+  [role="dialog"] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea) {
+    font-size: 1rem;
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-header, .calendar-surface *, [role="dialog"] *, #stats-dashboard-content * {
+    transition: none;
+  }
+  .animate-pulse, .animate-spin { animation: none; }
+}
+
 /* Hide scrollbars for neat custom calendar cells */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

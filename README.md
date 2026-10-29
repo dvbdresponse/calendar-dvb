@@ -29,7 +29,7 @@ React + Vite calendar app for office meeting schedules. The app supports two mod
 
 ## Supabase Setup
 
-1. Open the app and click database settings.
+1. Open the app and click the data connection badge (ข้อมูลส่วนกลาง / ข้อมูลในเครื่อง) in the header.
 2. Copy the SQL schema from the Supabase setup modal.
 3. Run it in Supabase SQL Editor.
 4. Create users in Supabase Authentication.

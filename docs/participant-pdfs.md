@@ -4,7 +4,7 @@ Each meeting supports one optional PDF, up to 2 MiB (2,097,152 bytes).
 
 ## Enable on an existing Supabase project
 
-1. In the calendar, open database settings.
+1. In the calendar, click the data connection badge (ข้อมูลส่วนกลาง / ข้อมูลในเครื่อง) in the header to open database settings.
 2. Click **คัดลอก SQL สำหรับแนบ PDF** and run the copied SQL in Supabase SQL Editor once. This uses the configured event table name.
 3. Sign in to the calendar and attach a PDF while creating or editing a meeting.
 

@@ -3,6 +3,7 @@ import { X, Check, Copy, Database, Cloud, Wifi, AlertCircle, RefreshCw, FileText
 import { Group, SupabaseConfig } from "../types";
 import { buildSqlSchema, checkSupabaseConnection } from "../utils/supabaseClient";
 import { buildParticipantPdfSql } from "../utils/participantPdfSchema";
+import { useModalAccessibility } from "../hooks/useModalAccessibility";
 
 interface SupabaseConfigModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export default function SupabaseConfigModal({
   const [pdfSqlCopied, setPdfSqlCopied] = useState(false);
   const [copyError, setCopyError] = useState("");
   const sqlSchema = buildSqlSchema(groups);
+  const dialogRef = useModalAccessibility(isOpen, onClose, isTesting);
 
   useEffect(() => {
     if (isOpen) {
@@ -93,6 +95,11 @@ export default function SupabaseConfigModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div 
         id="supabase-config-dialog"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="supabase-config-title"
+        tabIndex={-1}
         className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Header */}
@@ -102,12 +109,14 @@ export default function SupabaseConfigModal({
               <Database className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold font-sans">เชื่อมต่อระบบฐานข้อมูล Supabase</h3>
+              <h2 id="supabase-config-title" className="text-lg font-semibold font-sans">ตั้งค่าการเชื่อมต่อฐานข้อมูล</h2>
               <p className="text-xs text-slate-400 font-sans">เชื่อมต่อปฏิทินของคุณเข้ากับเซิร์ฟเวอร์จริงและเปิดใช้งานแบบเรียลไทม์</p>
             </div>
           </div>
           <button 
             id="close-supabase-modal-btn"
+            type="button"
+            aria-label="ปิดการตั้งค่าฐานข้อมูล"
             onClick={onClose} 
             className="text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-800 rounded-lg"
           >
@@ -138,6 +147,7 @@ export default function SupabaseConfigModal({
                 <label className="text-xs font-medium text-slate-700 block">Supabase Project URL</label>
                 <input 
                   type="text" 
+                  aria-label="Supabase Project URL"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://your-project.supabase.co"
@@ -149,6 +159,7 @@ export default function SupabaseConfigModal({
                 <label className="text-xs font-medium text-slate-700 block">Supabase Anon Key (Public API Key)</label>
                 <input 
                   type="password" 
+                  aria-label="Supabase Public API Key"
                   value={anonKey}
                   onChange={(e) => setAnonKey(e.target.value)}
                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -162,6 +173,7 @@ export default function SupabaseConfigModal({
                 <label className="text-xs font-medium text-slate-700 block">ชื่อตาราง (Database Table)</label>
                 <input 
                   type="text" 
+                  aria-label="ชื่อตารางฐานข้อมูล"
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
                   placeholder="events"

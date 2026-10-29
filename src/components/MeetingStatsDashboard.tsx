@@ -74,7 +74,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
         count: maxCount,
       } : null
     };
-  }, [actualMeetings]);
+  }, [actualMeetings, groups]);
 
   // Generate monthly stats
   const monthlyChartData = useMemo(() => {
@@ -153,7 +153,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
         <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-xl text-white font-sans text-xs">
           <p className="font-bold text-[13px] text-red-400 mb-1">{detailName}</p>
           <div className="flex items-center gap-1.5 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>มีการจัดประชุม: <strong className="text-white text-sm font-bold">{value}</strong> ครั้ง</span>
           </div>
         </div>
@@ -167,28 +167,26 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
       
       {/* Header Bar */}
       <div 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="p-4 sm:px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between cursor-pointer select-none hover:bg-slate-50 transition-colors"
+        className="p-4 sm:px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between select-none transition-colors"
       >
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-red-50 text-red-600 rounded-xl">
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-800 font-sans flex items-center gap-1.5">
-              <span>รายงานวิเคราะห์สถิติวาระงานและปริมาณการประชุม</span>
-              <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                Recharts Live
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400 font-sans mt-0.5">
-              สรุปสถิติเพื่อสะท้อนภาระงาน (Workload) และการจัดสรรเวลาของหน่วยงานราชการแบบเรียลไทม์
+            <h2 className="text-base font-bold text-slate-800 font-sans">สถิติการประชุม</h2>
+            <p className="text-xs text-slate-600 font-sans mt-0.5">
+              รวมกิจกรรมทุกช่วงเวลา ไม่รวมวันหยุด
             </p>
           </div>
         </div>
 
         <button 
           id="toggle-stats-dashboard-btn"
+          onClick={() => setIsExpanded(!isExpanded)}
+          aria-label={isExpanded ? "ย่อรายงานสถิติ" : "ขยายรายงานสถิติ"}
+          aria-expanded={isExpanded}
+          aria-controls="stats-dashboard-content"
           type="button"
           className="p-1.5 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-500 hover:text-slate-800 transition-all"
         >
@@ -202,7 +200,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
 
       {/* Stats Body with Slide-down simulation */}
       {isExpanded && (
-        <div className="p-4 sm:p-6 space-y-6 animate-in fade-in duration-200">
+        <div id="stats-dashboard-content" className="p-4 sm:p-6 space-y-6">
           
           {/* Key Metric Overview Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -210,13 +208,13 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
             {/* Card 1: Total Meetings */}
             <div className="bg-slate-50/55 p-4 rounded-xl border border-slate-100 flex items-start justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans block">
+                <span className="text-sm font-bold text-slate-600 uppercase tracking-wider font-sans block">
                   จำนวนการประชุมรวม
                 </span>
                 <p className="text-2xl font-black text-slate-800 font-sans">
-                  {stats.total} <span className="text-xs text-slate-400 font-medium">ครั้ง</span>
+                  {stats.total} <span className="text-xs text-slate-600 font-medium">ครั้ง</span>
                 </p>
-                <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-sans font-semibold mt-1">
+                <div className="flex items-center gap-1 text-sm text-emerald-700 font-sans font-semibold mt-1">
                   <TrendingUp className="w-3.5 h-3.5" />
                   <span>บันทึกวาระงานเรียบร้อย</span>
                 </div>
@@ -229,18 +227,18 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
             {/* Card 2: Online Meetings */}
             <div className="bg-slate-50/55 p-4 rounded-xl border border-slate-100 flex items-start justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans block">
+                <span className="text-sm font-bold text-slate-600 uppercase tracking-wider font-sans block">
                   ประชุมผ่านช่องทางออนไลน์
                 </span>
-                <p className="text-2xl font-black text-emerald-600 font-sans">
-                  {stats.online} <span className="text-xs text-slate-400 font-medium">ครั้ง</span>
+                <p className="text-2xl font-black text-emerald-700 font-sans">
+                  {stats.online} <span className="text-xs text-slate-600 font-medium">ครั้ง</span>
                 </p>
-                <div className="flex items-center gap-1 text-[11px] text-slate-500 font-sans mt-1">
+                <div className="flex items-center gap-1 text-sm text-slate-500 font-sans mt-1">
                   <span>คิดเป็นอัตราส่วน </span>
-                  <strong className="text-emerald-600 font-bold">{stats.onlinePercentage}%</strong>
+                  <strong className="text-emerald-700 font-bold">{stats.onlinePercentage}%</strong>
                 </div>
               </div>
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+              <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
                 <Video className="w-4 h-4" />
               </div>
             </div>
@@ -248,14 +246,14 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
             {/* Card 3: Onsite Meetings */}
             <div className="bg-slate-50/55 p-4 rounded-xl border border-slate-100 flex items-start justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans block">
+                <span className="text-sm font-bold text-slate-600 uppercase tracking-wider font-sans block">
                   ประชุม ณ สถานที่ (On-site)
                 </span>
                 <p className="text-2xl font-black text-blue-600 font-sans">
-                  {stats.onsite} <span className="text-xs text-slate-400 font-medium">ครั้ง</span>
+                  {stats.onsite} <span className="text-xs text-slate-600 font-medium">ครั้ง</span>
                 </p>
-                <div className="flex items-center gap-1 text-[11px] text-slate-500 font-sans mt-1">
-                  <span>ตรวจพิกัดอาคารสำนักงาน</span>
+                <div className="flex items-center gap-1 text-sm text-slate-500 font-sans mt-1">
+                  <span>การประชุมที่ระบุรูปแบบในสถานที่</span>
                 </div>
               </div>
               <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -266,7 +264,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
             {/* Card 4: Busiest Group */}
             <div className="bg-slate-50/55 p-4 rounded-xl border border-slate-100 flex items-start justify-between">
               <div className="space-y-1.5 flex-1 min-w-0">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans block">
+                <span className="text-sm font-bold text-slate-600 uppercase tracking-wider font-sans block">
                   หน่วยงานที่ประชุมถี่สุด
                 </span>
                 {stats.busiestGroup ? (
@@ -274,12 +272,12 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                     <p className="text-[14px] font-bold text-slate-800 font-sans truncate" title={stats.busiestGroup.name}>
                       {stats.busiestGroup.name}
                     </p>
-                    <span className="inline-block font-bold px-2 py-0.5 rounded text-[10px] border mt-1" style={getGroupBadgeStyle(stats.busiestGroup)}>
+                    <span className="inline-block font-bold px-2 py-0.5 rounded text-sm border mt-1" style={getGroupBadgeStyle(stats.busiestGroup)}>
                       {stats.busiestGroup.label} — {stats.busiestGroup.count} ครั้ง
                     </span>
                   </>
                 ) : (
-                  <p className="text-sm font-semibold text-slate-400 font-sans py-1">
+                  <p className="text-sm font-semibold text-slate-600 font-sans py-1">
                     ยังไม่มีข้อมูลกิจกรรม
                   </p>
                 )}
@@ -300,7 +298,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
                   <span className="text-xs font-bold text-slate-700 font-sans">
-                    แผนภูมิแสดงจำนวนการประชุมสะสม
+                    {timeframe === "monthly" ? "จำนวนการประชุมแยกตามเดือน (รวมทุกปี)" : "จำนวนการประชุมแยกตามวันในสัปดาห์ (ทุกช่วงเวลา)"}
                   </span>
                 </div>
 
@@ -310,25 +308,27 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                     id="stats-timeframe-monthly-btn"
                     type="button"
                     onClick={() => setTimeframe("monthly")}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all duration-150 cursor-pointer ${
+                    aria-pressed={timeframe === "monthly"}
+                    className={`px-2.5 py-1 rounded-md text-sm font-bold transition-all duration-150 cursor-pointer ${
                       timeframe === "monthly"
                         ? "bg-white text-slate-800 shadow-sm border border-slate-200"
                         : "text-slate-500 hover:text-slate-800 border border-transparent"
                     }`}
                   >
-                    สรุปรายเดือน
+                    แยกตามเดือน
                   </button>
                   <button
                     id="stats-timeframe-weekly-btn"
                     type="button"
                     onClick={() => setTimeframe("weekly")}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all duration-150 cursor-pointer ${
+                    aria-pressed={timeframe === "weekly"}
+                    className={`px-2.5 py-1 rounded-md text-sm font-bold transition-all duration-150 cursor-pointer ${
                       timeframe === "weekly"
                         ? "bg-white text-slate-800 shadow-sm border border-slate-200"
                         : "text-slate-500 hover:text-slate-800 border border-transparent"
                     }`}
                   >
-                    ความหนาแน่นรายวัน (สัปดาห์)
+                    แยกตามวันในสัปดาห์
                   </button>
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
               {/* Responsive BarChart Container */}
               <div className="h-64 w-full bg-slate-50/30 p-2 sm:p-4 border border-slate-100 rounded-xl">
                 {actualMeetings.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-400 font-sans text-xs">
+                  <div className="h-full flex flex-col items-center justify-center text-slate-600 font-sans text-xs">
                     <span>ไม่มีข้อมูลกิจกรรมเพื่อสร้างกราฟสถิติ</span>
                   </div>
                 ) : (
@@ -348,16 +348,16 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="name" 
-                        stroke="#94a3b8" 
-                        fontSize={10} 
+                        stroke="#475569"
+                        fontSize={12}
                         fontWeight={600}
                         tickLine={false}
                         axisLine={false}
                         dy={8}
                       />
                       <YAxis 
-                        stroke="#94a3b8" 
-                        fontSize={10} 
+                        stroke="#475569"
+                        fontSize={12}
                         fontWeight={600}
                         tickLine={false}
                         axisLine={false}
@@ -381,6 +381,17 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
                   </ResponsiveContainer>
                 )}
               </div>
+
+              {actualMeetings.length > 0 && (
+                <details className="text-sm text-slate-700">
+                  <summary className="min-h-11 flex items-center cursor-pointer font-semibold underline underline-offset-4">ดูข้อมูลกราฟแบบตาราง</summary>
+                  <table className="w-full text-left mt-2">
+                    <caption className="sr-only">จำนวนการประชุมรวมทุกช่วงเวลา ไม่รวมวันหยุด</caption>
+                    <thead><tr className="border-b border-slate-200"><th scope="col" className="py-2">{timeframe === "monthly" ? "เดือน (รวมทุกปี)" : "วันในสัปดาห์"}</th><th scope="col" className="py-2 text-right">จำนวน (ครั้ง)</th></tr></thead>
+                    <tbody>{activeChartData.map(row => <tr key={row.name} className="border-b border-slate-100"><th scope="row" className="py-2 font-normal">{"fullName" in row ? row.fullName : row.name}</th><td className="py-2 text-right tabular-nums">{row["จำนวนครั้ง"]}</td></tr>)}</tbody>
+                  </table>
+                </details>
+              )}
             </div>
 
             {/* Department Breakdown Column */}
@@ -400,7 +411,7 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
 
                     return (
                       <div key={g.id} className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-sans">
+                        <div className="flex items-center justify-between text-sm font-sans">
                           <span className="font-semibold text-slate-700 truncate max-w-[150px]">{g.name}</span>
                           <span className="font-bold text-slate-900">{groupMeetingsCount} ครั้ง ({percent}%)</span>
                         </div>
@@ -421,10 +432,10 @@ export default function MeetingStatsDashboard({ events, groups }: MeetingStatsDa
               </div>
 
               {/* Informative Banner */}
-              <div className="bg-white border border-slate-200/60 rounded-xl p-3 flex items-start gap-2.5 shadow-sm/5 text-[11px] text-slate-500 leading-normal font-sans">
+              <div className="bg-white border border-slate-200/60 rounded-xl p-3 flex items-start gap-2.5 shadow-sm/5 text-sm text-slate-500 leading-normal font-sans">
                 <Award className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                 <span>
-                  <strong>การวิเคราะห์เบื้องต้น:</strong> แผนภูมิแท่งสะสมช่วยให้ผู้จัดตารางประชุมสามารถตรวจสอบปริมาณงานที่ทับซ้อนในแต่ละช่วงเวลาได้อย่างมีประสิทธิภาพสูงสุด
+                  <strong>การวิเคราะห์เบื้องต้น:</strong> กราฟนับจำนวนกิจกรรมตามวันที่เริ่มประชุม รวมทุกปี และไม่รวมวันหยุด ใช้เปรียบเทียบปริมาณงานระหว่างเดือนหรือวันในสัปดาห์
                 </span>
               </div>
 

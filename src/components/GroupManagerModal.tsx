@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Plus, Edit2, Trash2, Tag } from "lucide-react";
 import { Group } from "../types";
 import { DEFAULT_GROUP_COLOR, getGroupBadgeStyle, getGroupPalette, withDerivedGroupColors } from "../utils/groupColors";
+import { useModalAccessibility } from "../hooks/useModalAccessibility";
 
 interface GroupManagerModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function GroupManagerModal({
 }: GroupManagerModalProps) {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Group>>({});
+  const dialogRef = useModalAccessibility(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -72,6 +74,7 @@ export default function GroupManagerModal({
             <input
               type="text"
               className="w-full text-sm border border-slate-200 rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+              aria-label="ชื่อกลุ่มงานเต็ม"
               value={formData.name || ""}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="เช่น สำนักงานผู้อำนวยการ"
@@ -82,6 +85,7 @@ export default function GroupManagerModal({
             <input
               type="text"
               className="w-full text-sm border border-slate-200 rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+              aria-label="ชื่อย่อกลุ่มงาน"
               value={formData.label || ""}
               onChange={(e) => setFormData({ ...formData, label: e.target.value })}
               placeholder="เช่น ผอ."
@@ -103,6 +107,7 @@ export default function GroupManagerModal({
               <input
                 type="text"
                 className="min-w-0 flex-1 text-sm font-mono uppercase border border-slate-200 rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+                aria-label="รหัสสีหลัก"
                 value={colorValue}
                 onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                 onBlur={() => setFormData({ ...formData, color: palette.color })}
@@ -149,21 +154,21 @@ export default function GroupManagerModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="group-manager-title" tabIndex={-1} className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
               <Tag className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800 font-sans">จัดการกลุ่มงาน/กองสังกัด</h2>
+              <h2 id="group-manager-title" className="text-lg font-bold text-slate-800 font-sans">จัดการกลุ่มงาน/กองสังกัด</h2>
               <p className="text-xs text-slate-500 font-sans">เพิ่ม ลบ หรือแก้ไขกลุ่มงานสำหรับผู้ดูแลระบบ</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-400 hover:text-slate-600 cursor-pointer"
+            className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-600 hover:text-slate-600 cursor-pointer"
             aria-label="ปิดหน้าต่าง"
           >
             <X className="w-5 h-5" />
@@ -212,7 +217,7 @@ export default function GroupManagerModal({
                         <button
                           type="button"
                           onClick={() => handleEdit(group)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                           title="แก้ไข"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -224,7 +229,7 @@ export default function GroupManagerModal({
                               void onDeleteGroup(group.id);
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="ลบ"
                         >
                           <Trash2 className="w-4 h-4" />

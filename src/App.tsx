@@ -710,6 +710,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans antialiased text-slate-800 pb-12">
+      <a href="#main-content" className="skip-link">ข้ามไปยังปฏิทินและเนื้อหา</a>
       <Header
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -752,7 +753,7 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      <main id="main-content" tabIndex={-1} className="min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6">
         {isDbLoading && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-3 shadow-sm animate-pulse">
             <div className="flex items-center gap-3">
@@ -839,15 +840,15 @@ export default function App() {
         )}
 
         {isSupabaseMode && !user && (
-          <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold text-sky-800 font-sans">อ่านปฏิทินได้แบบสาธารณะ</p>
-              <p className="text-xs text-sky-600 font-sans mt-0.5">การเพิ่ม แก้ไข หรือลบข้อมูลต้องเข้าสู่ระบบด้วยบัญชี Supabase Auth</p>
+          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 sm:p-4 mb-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-sky-900 font-sans">ดูปฏิทินได้โดยไม่ต้องเข้าสู่ระบบ</p>
+              <p className="hidden sm:block text-sm text-sky-800 font-sans mt-0.5">เข้าสู่ระบบด้วยบัญชีหน่วยงานเพื่อเพิ่มหรือแก้ไขกิจกรรม</p>
             </div>
             <button
               type="button"
               onClick={() => setIsLoginModalOpen(true)}
-              className="text-xs font-semibold px-3.5 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg shadow transition-colors font-sans whitespace-nowrap"
+              className="min-h-11 shrink-0 text-sm font-semibold px-3.5 py-2 bg-sky-800 hover:bg-sky-900 text-white rounded-lg transition-colors font-sans whitespace-nowrap"
             >
               เข้าสู่ระบบ
             </button>
@@ -855,24 +856,25 @@ export default function App() {
         )}
 
         {searchTerm && (
-          <div className="bg-slate-100 border border-slate-200 rounded-xl p-3.5 mb-6 flex items-center justify-between">
-            <div className="text-xs text-slate-600 font-sans">
+          <div role="status" className="bg-slate-100 border border-slate-200 rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3">
+            <div className="event-copy min-w-0 text-sm text-slate-600 font-sans">
               กำลังค้นหาด้วยคำว่า: <strong className="text-slate-900 font-bold">"{searchTerm}"</strong> พบผลลัพธ์ <strong className="text-red-600 text-sm font-bold">{filteredEvents.length}</strong> รายการ
             </div>
             <button
               id="clear-search-btn"
               onClick={() => setSearchTerm("")}
-              className="text-xs font-semibold text-red-600 hover:text-red-800 font-sans"
+              className="min-h-11 shrink-0 text-sm font-semibold text-red-700 hover:text-red-800 font-sans"
             >
               ล้างการค้นหา
             </button>
           </div>
         )}
 
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 shadow-inner max-w-sm mb-6">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 max-w-sm mb-4 sm:mb-6">
           <button
             id="tab-calendar-btn"
             type="button"
+            aria-pressed={activeTab === "calendar"}
             onClick={() => setActiveTab("calendar")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
               activeTab === "calendar"
@@ -886,6 +888,7 @@ export default function App() {
           <button
             id="tab-analytics-btn"
             type="button"
+            aria-pressed={activeTab === "analytics"}
             onClick={() => setActiveTab("analytics")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
               activeTab === "analytics"
@@ -904,6 +907,9 @@ export default function App() {
           </Suspense>
         ) : (
           <CalendarView
+            searchTerm={searchTerm}
+            onClearSearch={() => setSearchTerm("")}
+            onRequestLogin={() => setIsLoginModalOpen(true)}
             events={filteredEvents}
             groups={groups}
             selectedDate={selectedDate}

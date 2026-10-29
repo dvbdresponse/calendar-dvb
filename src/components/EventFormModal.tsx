@@ -3,6 +3,8 @@ import { X, Calendar, Clock, MapPin, AlignLeft, User, Info, Check, ChevronLeft, 
 import { EventData, Group } from "../types";
 import { ParticipantPdfChange, validateParticipantPdf } from "../utils/participantPdf";
 import ParticipantPdfActions from "./ParticipantPdfActions";
+import { useModalAccessibility } from "../hooks/useModalAccessibility";
+import { getMeetingUrl } from "../utils/meetingUrl";
 import {
   findBookingConflict,
   getOnlineResourceDescription,
@@ -85,6 +87,7 @@ export default function EventFormModal({
   const [removePdf, setRemovePdf] = useState(false);
   const [checkingPdf, setCheckingPdf] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const dialogRef = useModalAccessibility(isOpen, onClose, isSaving);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const pdfSelectionRef = useRef(0);
   const savingRef = useRef(false);
@@ -275,6 +278,9 @@ export default function EventFormModal({
     if (bookingConflict) {
       newErrors.booking = `${bookingConflict.resourceName} ถูกจองแล้วในช่วงเวลาเดียวกัน: ${bookingConflict.event.title}`;
     }
+    if (shouldShowOnlineLink && onlineLink.trim() && !getMeetingUrl(onlineLink)) {
+      newErrors.onlineLink = "กรุณาใส่ลิงก์ประชุมที่ถูกต้อง เช่น https://example.org/meeting";
+    }
     
     if (!isMultiDay) {
       if (!startTime) newErrors.startTime = "กรุณาระบุเวลาเริ่ม";
@@ -312,7 +318,7 @@ export default function EventFormModal({
       location: resolvedLocation.trim(),
       is_online: isOnline,
       online_platform: isOnline ? resolvedOnlinePlatform : "",
-      online_link: shouldShowOnlineLink ? onlineLink.trim() : getOnlineResourceLink(onlineResource),
+      online_link: shouldShowOnlineLink ? getMeetingUrl(onlineLink) : getOnlineResourceLink(onlineResource),
       online_resource: isOnline ? onlineResource : "",
       is_holiday: isHoliday,
       created_by: createdBy.trim(),
@@ -331,6 +337,8 @@ export default function EventFormModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
       <div 
         id="event-form-dialog"
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="event-form-title"
@@ -376,6 +384,8 @@ export default function EventFormModal({
             <div className="relative" ref={titleFieldRef}>
               <input
                 type="text"
+                aria-label="หัวข้อกิจกรรม / ชื่อการประชุม"
+                data-autofocus
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
@@ -396,14 +406,14 @@ export default function EventFormModal({
                   type="button"
                   aria-label="เลือกชื่อประชุมที่ใช้บ่อย"
                   onClick={() => setShowTitleSuggestions((prev) => !prev)}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-600 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <ChevronDown className={`w-4 h-4 transition-transform ${showTitleSuggestions ? "rotate-180" : ""}`} />
                 </button>
               )}
               {showTitleSuggestions && filteredTitleSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-150 rounded-xl shadow-2xl py-1 z-50 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150">
-                  <p className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">ชื่อที่ใช้บ่อย</p>
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 z-50 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150">
+                  <p className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 font-sans">ชื่อที่ใช้บ่อย</p>
                   {filteredTitleSuggestions.map((suggestion) => (
                     <button
                       key={suggestion}
@@ -427,10 +437,11 @@ export default function EventFormModal({
           {/* Description */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
-              <AlignLeft className="w-3.5 h-3.5 text-slate-400" />
+              <AlignLeft className="w-3.5 h-3.5 text-slate-600" />
               รายละเอียดกิจกรรม
             </label>
             <textarea 
+              aria-label="รายละเอียดกิจกรรม"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="ระบุวัตถุประสงค์ วาระสำคัญ เอกสารประกอบ หรือรายชื่อผู้เข้าร่วมประชุม (ถ้ามี)"
@@ -445,7 +456,7 @@ export default function EventFormModal({
               <label className="text-xs font-bold text-slate-700 block flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-red-500" />
                 <span>วันเริ่มต้น *</span>
-                <span className="text-[10px] text-slate-400 font-normal">(พ.ศ. ไทย)</span>
+                <span className="text-[10px] text-slate-600 font-normal">(พ.ศ. ไทย)</span>
               </label>
               
               <button
@@ -459,16 +470,16 @@ export default function EventFormModal({
                 <span className="font-sans font-medium text-slate-800">
                   {date ? formatThaiDate(date) : "กรุณาเลือกวันเริ่มต้น..."}
                 </span>
-                <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                <Calendar className="w-4 h-4 text-slate-600 shrink-0" />
               </button>
               {errors.date && <p className="text-xs text-red-500 font-sans mt-0.5">{errors.date}</p>}
             </div>
 
             <div className="space-y-1 relative">
               <label className="text-xs font-bold text-slate-700 block flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <Calendar className="w-3.5 h-3.5 text-slate-600" />
                 <span>วันสิ้นสุด (ถ้ามี)</span>
-                <span className="text-[10px] text-slate-400 font-normal">หลายวัน</span>
+                <span className="text-[10px] text-slate-600 font-normal">หลายวัน</span>
               </label>
               
               <button
@@ -484,12 +495,12 @@ export default function EventFormModal({
                   errors.endDate ? "border-red-500 ring-2 ring-red-100" : "border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                 }`}
               >
-                <span className={`font-sans font-medium ${endDate ? "text-slate-800" : "text-slate-400"}`}>
+                <span className={`font-sans font-medium ${endDate ? "text-slate-800" : "text-slate-600"}`}>
                   {endDate ? formatThaiDate(endDate) : "ไม่ได้ระบุ (วันเดียว)"}
                 </span>
                 {endDate ? (
                   <X 
-                    className="w-4 h-4 text-slate-400 hover:text-red-500 shrink-0" 
+                    className="w-4 h-4 text-slate-600 hover:text-red-500 shrink-0"
                     onClick={(e) => { e.stopPropagation(); setEndDate(""); }}
                   />
                 ) : (
@@ -586,7 +597,7 @@ export default function EventFormModal({
               return (
                 <div 
                   id="event-datepicker-popover"
-                  className="absolute left-0 right-0 sm:right-auto sm:w-80 bg-white border border-slate-150 rounded-2xl shadow-2xl p-4 mt-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute left-0 right-0 sm:right-auto sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 mt-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                 >
                   {/* Popover Header */}
                   <div className="flex items-center justify-between gap-2 mb-3">
@@ -624,7 +635,7 @@ export default function EventFormModal({
                       <span 
                         key={w} 
                         className={`text-[10px] font-bold uppercase tracking-wider font-sans ${
-                          idx === 0 ? "text-red-500" : "text-slate-400"
+                          idx === 0 ? "text-red-500" : "text-slate-600"
                         }`}
                       >
                         {w}
@@ -744,7 +755,7 @@ export default function EventFormModal({
                           return <option key={h} value={h}>{h}</option>;
                         })}
                       </select>
-                      <span className="text-slate-400 font-bold px-0.5">:</span>
+                      <span className="text-slate-600 font-bold px-0.5">:</span>
                       <select 
                         id="event-start-minute-select"
                         value={startM || "00"}
@@ -756,7 +767,7 @@ export default function EventFormModal({
                           return <option key={m} value={m}>{m}</option>;
                         })}
                       </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-600 shrink-0 ml-1" />
                     </div>
                   </div>
 
@@ -775,7 +786,7 @@ export default function EventFormModal({
                           return <option key={h} value={h}>{h}</option>;
                         })}
                       </select>
-                      <span className="text-slate-400 font-bold px-0.5">:</span>
+                      <span className="text-slate-600 font-bold px-0.5">:</span>
                       <select 
                         id="event-end-minute-select"
                         value={endM || "00"}
@@ -787,7 +798,7 @@ export default function EventFormModal({
                           return <option key={m} value={m}>{m}</option>;
                         })}
                       </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-600 shrink-0 ml-1" />
                     </div>
                   </div>
                 </div>
@@ -818,6 +829,7 @@ export default function EventFormModal({
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block">กลุ่มงาน / กองสังกัดเจ้าภาพ *</label>
             <select
+              aria-label="กลุ่มงาน / กองสังกัดเจ้าภาพ"
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
               className="w-full text-sm px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all bg-white"
@@ -834,10 +846,11 @@ export default function EventFormModal({
           {/* Location field */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <MapPin className="w-3.5 h-3.5 text-slate-600" />
               สถานที่จัดประชุม
             </label>
             <select
+              aria-label="สถานที่จัดประชุม"
               value={locationChoice}
               onChange={(e) => {
                 setLocationChoice(e.target.value);
@@ -860,6 +873,7 @@ export default function EventFormModal({
             {locationChoice === LOCATION_OTHER_VALUE && (
               <input
                 type="text"
+                aria-label="สถานที่จัดประชุมอื่น"
                 value={customLocation}
                 onChange={(e) => setCustomLocation(e.target.value)}
                 placeholder="กรอกสถานที่จัดประชุมอื่นๆ"
@@ -885,10 +899,13 @@ export default function EventFormModal({
             <div className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50 rounded-xl">
               <div className="space-y-0.5">
                 <span className="text-xs font-bold text-slate-700 block">รูปแบบออนไลน์ (Online)</span>
-                <span className="text-[10px] text-slate-400 font-sans block">ใช้การประชุมผ่าน Video Call</span>
+                <span className="text-[10px] text-slate-600 font-sans block">ใช้การประชุมผ่าน Video Call</span>
               </div>
               <button
                 id="online-meeting-toggle"
+                role="switch"
+                aria-label="ประชุมออนไลน์"
+                aria-checked={isOnline}
                 type="button"
                 onClick={() => {
                   const nextIsOnline = !isOnline;
@@ -898,11 +915,11 @@ export default function EventFormModal({
                     setOnlineResource("");
                   }
                 }}
-                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-                  isOnline ? "bg-emerald-500" : "bg-slate-350"
-                }`}
+                className="w-12 h-11 shrink-0 flex items-center justify-center cursor-pointer"
               >
-                <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isOnline ? "translate-x-5" : "translate-x-0"}`} />
+                <span aria-hidden="true" className={`w-11 h-6 flex items-center rounded-full p-1 ${isOnline ? "bg-emerald-700" : "bg-slate-500"}`}>
+                  <span className={`bg-white w-4 h-4 rounded-full transform transition-transform ${isOnline ? "translate-x-5" : "translate-x-0"}`} />
+                </span>
               </button>
             </div>
 
@@ -910,23 +927,26 @@ export default function EventFormModal({
             <div className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50 rounded-xl">
               <div className="space-y-0.5">
                 <span className="text-xs font-bold text-slate-700 block">ระบุเป็นวันหยุด (Holiday)</span>
-                <span className="text-[10px] text-slate-400 font-sans block">แสดงป้ายวันหยุดสีแดงในปฏิทิน</span>
+                <span className="text-[10px] text-slate-600 font-sans block">แสดงป้ายวันหยุดสีแดงในปฏิทิน</span>
               </div>
               <button
                 id="holiday-flag-toggle"
+                role="switch"
+                aria-label="ระบุเป็นวันหยุด"
+                aria-checked={isHoliday}
                 type="button"
                 onClick={() => setIsHoliday(!isHoliday)}
-                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-                  isHoliday ? "bg-red-500" : "bg-slate-350"
-                }`}
+                className="w-12 h-11 shrink-0 flex items-center justify-center cursor-pointer"
               >
-                <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isHoliday ? "translate-x-5" : "translate-x-0"}`} />
+                <span aria-hidden="true" className={`w-11 h-6 flex items-center rounded-full p-1 ${isHoliday ? "bg-red-700" : "bg-slate-500"}`}>
+                  <span className={`bg-white w-4 h-4 rounded-full transform transition-transform ${isHoliday ? "translate-x-5" : "translate-x-0"}`} />
+                </span>
               </button>
             </div>
 
             {/* Online Meeting */}
             {isOnline && (
-              <div className="col-span-1 sm:col-span-2 p-3.5 border border-slate-150 bg-slate-50/50 rounded-2xl space-y-2.5 animate-in fade-in slide-in-from-top-1.5 duration-150">
+              <div className="col-span-1 sm:col-span-2 p-3.5 border border-slate-200 bg-slate-50/50 rounded-2xl space-y-2.5 animate-in fade-in slide-in-from-top-1.5 duration-150">
                 <div className="space-y-2 pt-1">
                   <span className="text-xs font-bold text-slate-700 block">การประชุมออนไลน์</span>
                   <div className="grid grid-cols-1 gap-2">
@@ -965,14 +985,19 @@ export default function EventFormModal({
                 </div>
                 {shouldShowOnlineLink && (
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700 block">ลิงก์การประชุมออนไลน์</label>
+                    <label htmlFor="event-online-link" className="text-sm font-semibold text-slate-700 block">ลิงก์การประชุมออนไลน์</label>
                     <input
+                      id="event-online-link"
                       type="text"
+                      inputMode="url"
+                      aria-invalid={!!errors.onlineLink}
+                      aria-describedby={errors.onlineLink ? "event-online-link-error" : undefined}
                       value={onlineLink}
                       onChange={(e) => setOnlineLink(e.target.value)}
                       placeholder="วางลิงก์ Zoom / Webex"
                       className="w-full text-sm px-3.5 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all bg-white"
                     />
+                    {errors.onlineLink && <p id="event-online-link-error" role="alert" className="text-sm text-red-700">{errors.onlineLink}</p>}
                   </div>
                 )}
               </div>
@@ -1037,11 +1062,12 @@ export default function EventFormModal({
           {/* Created By */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 block flex items-center gap-1">
-              <User className="w-3.5 h-3.5 text-slate-400" />
+              <User className="w-3.5 h-3.5 text-slate-600" />
               ชื่อข้าราชการ / เจ้าหน้าที่ผู้ลงบันทึก *
             </label>
             <input 
               type="text"
+              aria-label="เจ้าหน้าที่ผู้ลงบันทึก"
               value={createdBy}
               onChange={(e) => setCreatedBy(e.target.value)}
               placeholder="เช่น นายศักดิ์ดา อัครเดชา"

@@ -1,15 +1,10 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox, Copy } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Video, Calendar, List, Clock, MapPin, User, CalendarDays, Filter, Inbox, Copy } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 import { getOnlineResourceDescription, getOnlineResourceLabel } from "../utils/booking";
 import ParticipantPdfActions from "./ParticipantPdfActions";
-
-const buildMeetingHref = (link?: string) => {
-  if (!link?.trim()) return "";
-  const trimmed = link.trim();
-  return trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
-};
+import MeetingLink from "./MeetingLink";
 
 const getOnlinePlatformLabel = (platform?: string) => {
   if (platform === "zoom") return "Zoom";
@@ -24,6 +19,9 @@ interface UnifiedHoliday {
 }
 
 interface CalendarViewProps {
+  searchTerm: string;
+  onClearSearch: () => void;
+  onRequestLogin: () => void;
   events: EventData[];
   groups: Group[];
   selectedDate: string; // YYYY-MM-DD
@@ -40,6 +38,9 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({
+  searchTerm,
+  onClearSearch,
+  onRequestLogin,
   events,
   groups,
   selectedDate,
@@ -59,6 +60,7 @@ export default function CalendarView({
   const [showAgendas, setShowAgendas] = useState(true);
   const [showHolidays, setShowHolidays] = useState(true);
   const [agendaSubTab, setAgendaSubTab] = useState<"meetings" | "holidays">("meetings");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -220,20 +222,44 @@ export default function CalendarView({
     return { dateStr, dayHolidays };
   }).filter(item => item.dayHolidays.length > 0);
 
-  const totalMeetingsCount = meetingAgendaItems.reduce((acc, item) => acc + item.dayEvents.length, 0);
-  const totalHolidaysCount = holidayAgendaItems.reduce((acc, item) => acc + item.dayHolidays.length, 0);
+  const totalMeetingsCount = new Set(meetingAgendaItems.flatMap(item => item.dayEvents.map(event => event.id))).size;
+  const totalHolidaysCount = new Set(holidayAgendaItems.flatMap(item => item.dayHolidays.map(holiday => holiday.id))).size;
 
-  const activeAgendaLength = agendaSubTab === "meetings" ? totalMeetingsCount : totalHolidaysCount;
   const canManageHoliday = (holiday: UnifiedHoliday) => {
     const originalEvent = holiday.id ? events.find(e => e.id === holiday.id) : undefined;
     return !!originalEvent && canManageEvent(originalEvent);
   };
 
+  const hasFilters = !!searchTerm.trim() || activeGroupFilters.length > 0;
+  const emptyMeetings = (period: "day" | "month") => (
+    <div role="status" className="text-center py-8 px-4 text-slate-600 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+      <Inbox className="w-10 h-10 text-slate-500 mx-auto mb-3" aria-hidden="true" />
+      <h3 className="text-base font-semibold text-slate-800">
+        {!showAgendas ? "ซ่อนกิจกรรมอยู่" : hasFilters ? "ไม่พบกิจกรรมที่ตรงกับการค้นหาหรือตัวกรอง" : period === "day" ? "ไม่มีกิจกรรมในวันที่เลือก" : "ไม่มีกิจกรรมในเดือนนี้"}
+      </h3>
+      <p className="text-sm mt-2 leading-relaxed">
+        {!showAgendas ? "เปิดการแสดงกิจกรรมเพื่อดูรายการประชุม" : hasFilters ? "ลองล้างคำค้นและตัวกรองกลุ่มงานเพื่อดูรายการทั้งหมด" : isLoggedIn ? "เลือกวันที่อื่น หรือใช้ปุ่มเพิ่มกิจกรรมด้านบนเพื่อบันทึกกิจกรรมใหม่" : "เลือกวันที่อื่นเพื่อดูกิจกรรม หรือเข้าสู่ระบบเพื่อเพิ่มกิจกรรม"}
+      </p>
+      {!showAgendas ? (
+        <button type="button" onClick={() => setShowAgendas(true)} className="mt-3 px-4 py-2 text-sm font-semibold text-red-700 underline underline-offset-4">แสดงกิจกรรม</button>
+      ) : hasFilters ? (
+        <button type="button" onClick={() => { onClearFilters(); onClearSearch(); }} className="mt-3 px-4 py-2 text-sm font-semibold text-red-700 underline underline-offset-4">ล้างคำค้นและตัวกรอง</button>
+      ) : !isLoggedIn ? (
+        <button type="button" onClick={onRequestLogin} className="mt-3 px-4 py-2 text-sm font-semibold text-red-700 underline underline-offset-4">เข้าสู่ระบบ</button>
+      ) : null}
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="calendar-surface min-w-0 space-y-4 sm:space-y-6">
       
       {/* 1. Group & Content Filters Panel */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 sm:p-5">
+        <button id="calendar-filter-toggle" type="button" aria-expanded={isFilterOpen} aria-controls="calendar-filters" onClick={() => setIsFilterOpen(!isFilterOpen)} className="md:hidden flex w-full items-center justify-between gap-2 text-sm font-semibold text-slate-800">
+          <span className="flex items-center gap-2"><Filter className="w-4 h-4" aria-hidden="true" />ตัวกรอง {activeGroupFilters.length > 0 ? `(${activeGroupFilters.length} กลุ่ม)` : "· ทุกกลุ่มงาน"}</span>
+          <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isFilterOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
+        <div id="calendar-filters" className={`${isFilterOpen ? "block mt-3" : "hidden"} md:block md:mt-0`}>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column: Group Filters */}
           <div className="lg:col-span-3 space-y-3">
@@ -265,11 +291,13 @@ export default function CalendarView({
                   <button
                     id={`filter-group-${group.id}-btn`}
                     key={group.id}
+                    type="button"
+                    aria-pressed={activeGroupFilters.length === 0 || isActive}
                     onClick={() => onToggleGroupFilter(group.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${
                       activeGroupFilters.length === 0 || isActive
                         ? "shadow-sm font-semibold scale-[1.01]"
-                        : "bg-slate-50 border-slate-200 text-slate-400 opacity-60 hover:opacity-100 font-medium"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 font-medium"
                     }`}
                     style={activeGroupFilters.length === 0 || isActive ? getGroupBadgeStyle(group) : undefined}
                   >
@@ -300,39 +328,43 @@ export default function CalendarView({
               <button
                 id="toggle-show-agendas"
                 type="button"
+                aria-pressed={showAgendas}
                 onClick={() => setShowAgendas(!showAgendas)}
                 className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all duration-150 cursor-pointer ${
                   showAgendas
                     ? "bg-slate-900 border-slate-900 text-white font-bold shadow-sm"
-                    : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 font-medium"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-600 font-medium"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Calendar className={`w-3.5 h-3.5 ${showAgendas ? "text-red-400" : "text-slate-400"}`} />
+                  <Calendar className={`w-3.5 h-3.5 ${showAgendas ? "text-red-400" : "text-slate-600"}`} />
                   <span>แสดงวาระงานและกิจกรรม</span>
                 </div>
-                <div className={`w-2 h-2 rounded-full ${showAgendas ? "bg-emerald-400 animate-pulse" : "bg-slate-350"}`} />
+                <span className="ml-2 text-xs">{showAgendas ? "แสดง" : "ซ่อน"}</span>
               </button>
 
               <button
                 id="toggle-show-holidays"
                 type="button"
+                aria-pressed={showHolidays}
                 onClick={() => setShowHolidays(!showHolidays)}
                 className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all duration-150 cursor-pointer ${
                   showHolidays
                     ? "bg-slate-900 border-slate-900 text-white font-bold shadow-sm"
-                    : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 font-medium"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-600 font-medium"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <CalendarDays className={`w-3.5 h-3.5 ${showHolidays ? "text-red-400" : "text-slate-400"}`} />
+                  <CalendarDays className={`w-3.5 h-3.5 ${showHolidays ? "text-red-400" : "text-slate-600"}`} />
                   <span>แสดงวันหยุดราชการ</span>
                 </div>
-                <div className={`w-2 h-2 rounded-full ${showHolidays ? "bg-red-400 animate-pulse" : "bg-slate-350"}`} />
+                <span className="ml-2 text-xs">{showHolidays ? "แสดง" : "ซ่อน"}</span>
               </button>
             </div>
           </div>
         </div>
+      </div>
+
       </div>
 
       {/* 2. Monthly Calendar Component Main */}
@@ -346,10 +378,10 @@ export default function CalendarView({
               <Calendar className="w-[22px] h-[22px] text-red-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-850 font-sans tracking-tight">
+              <h2 className="text-base font-bold text-slate-900 font-sans tracking-tight">
                 {THAI_MONTHS[month]} {year + 543}
               </h2>
-              <p className="text-[11px] text-slate-400 font-sans">ปฏิทินแสดงรายเดือนราชการ</p>
+              <p className="text-sm text-slate-600 font-sans">เลือกวันที่เพื่อดูกิจกรรม</p>
             </div>
           </div>
 
@@ -359,10 +391,11 @@ export default function CalendarView({
               <button
                 id="view-mode-calendar-btn"
                 type="button"
+                aria-pressed={viewMode === "calendar"}
                 onClick={() => setViewMode("calendar")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                   viewMode === "calendar"
-                    ? "bg-white text-slate-800 shadow-sm border border-slate-150"
+                    ? "bg-white text-slate-800 shadow-sm border border-slate-200"
                     : "text-slate-500 hover:text-slate-800 border border-transparent"
                 }`}
               >
@@ -372,15 +405,16 @@ export default function CalendarView({
               <button
                 id="view-mode-agenda-btn"
                 type="button"
+                aria-pressed={viewMode === "agenda"}
                 onClick={() => setViewMode("agenda")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                   viewMode === "agenda"
-                    ? "bg-white text-slate-800 shadow-sm border border-slate-150"
+                    ? "bg-white text-slate-800 shadow-sm border border-slate-200"
                     : "text-slate-500 hover:text-slate-800 border border-transparent"
                 }`}
               >
                 <List className="w-3.5 h-3.5 text-red-500" />
-                <span>วาระงาน ({activeAgendaLength})</span>
+                <span>วาระงาน ({totalMeetingsCount})</span>
               </button>
             </div>
 
@@ -447,9 +481,20 @@ export default function CalendarView({
                     <div
                       id={`cell-${cell.dateStr}`}
                       key={`${cell.dateStr}-${idx}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
+                      aria-pressed={isSelected}
+                      aria-current={isToday ? "date" : undefined}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectDate(cell.dateStr);
+                        }
+                      }}
                       onClick={() => onSelectDate(cell.dateStr)}
                       style={{ zIndex: 100 - idx }}
-                      className={`min-h-[110px] p-2 bg-white transition-all cursor-pointer relative hover:bg-slate-50/50 hover:!z-[150] flex flex-col justify-between group ${
+                      className={`min-w-0 min-h-[110px] p-2 bg-white transition-all cursor-pointer relative hover:bg-slate-50/50 hover:!z-[150] flex flex-col justify-between group ${
                         !cell.isCurrentMonth ? "opacity-30" : ""
                       } ${
                         isSelected ? "ring-2 ring-red-500/10 bg-red-50/5 z-10" : ""
@@ -467,7 +512,7 @@ export default function CalendarView({
                                 ? idx % 7 === 0 // Sunday
                                   ? "text-red-600"
                                   : "text-slate-700"
-                                : "text-slate-400"
+                                : "text-slate-600"
                           }`}
                         >
                           {cell.dayNum}
@@ -514,7 +559,7 @@ export default function CalendarView({
                           return (
                             <div
                               key={evt.id}
-                              className={`group/pill text-[10px] leading-snug px-1.5 py-0.5 border flex ${
+                              className={`group/pill min-w-0 text-xs leading-snug px-1.5 py-0.5 border flex ${
                                 isMultiDay ? "items-center" : "items-start"
                               } gap-1 transition-all relative hover:z-50 ${
                                 !isMultiDay ? "hover:translate-x-0.5" : "z-10"
@@ -527,20 +572,20 @@ export default function CalendarView({
                                     {evt.start_time && (
                                       <span className="font-semibold shrink-0 font-sans">{evt.start_time}</span>
                                     )}
-                                    <span className="font-semibold px-0.5 bg-white/65 rounded text-[8px] uppercase shrink-0">
+                                    <span className="hidden xl:inline-block font-semibold px-0.5 bg-white/65 rounded text-[10px] uppercase shrink-0">
                                       {group?.label || "อื่น ๆ"}
                                     </span>
-                                    <span className="whitespace-nowrap overflow-visible z-20 pointer-events-none flex-1 text-left font-sans">{evt.title}</span>
+                                    <span className="truncate min-w-0 z-20 pointer-events-none flex-1 text-left font-sans">{evt.title}</span>
                                     {evt.is_online && (
                                       <Video className="w-2.5 h-2.5 shrink-0 opacity-80" />
                                     )}
                                   </>
                                 ) : (
-                                  <div className="flex-1 text-left font-sans line-clamp-2 break-words">
+                                  <div className="flex-1 min-w-0 text-left font-sans line-clamp-2 [overflow-wrap:anywhere]">
                                     {evt.start_time && (
                                       <span className="font-semibold mr-1 font-sans">{evt.start_time}</span>
                                     )}
-                                    <span className="font-semibold px-0.5 bg-white/65 rounded text-[8.5px] uppercase mr-1 inline-block align-[0.5px]">
+                                    <span className="hidden xl:inline-block font-semibold px-0.5 bg-white/65 rounded text-[10px] uppercase mr-1 inline-block align-[0.5px]">
                                       {group?.label || "อื่น ๆ"}
                                     </span>
                                     <span>{evt.title}</span>
@@ -564,7 +609,7 @@ export default function CalendarView({
                                 }`}
                               >
                                 {/* Title and Online Badge */}
-                                <div className="font-bold text-slate-900 leading-snug mb-2 font-sans border-b border-slate-105 pb-1.5 break-words flex items-start justify-between gap-1.5">
+                                <div className="font-bold text-slate-900 leading-snug mb-2 font-sans border-b border-slate-100 pb-1.5 break-words flex items-start justify-between gap-1.5">
                                   <span className="flex-1 text-[12px]">{evt.title}</span>
                                   {evt.is_online && (
                                     <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-100 font-bold uppercase shrink-0">
@@ -577,7 +622,7 @@ export default function CalendarView({
                                 <div className="space-y-2 font-semibold font-sans text-slate-600">
                                   {/* Time */}
                                   <div className="flex items-center gap-2">
-                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <Clock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                                     <span>
                                       {evt.start_time ? `${evt.start_time} - ${evt.end_time || ""} น.` : "ตลอดทั้งวัน"}
                                     </span>
@@ -585,7 +630,7 @@ export default function CalendarView({
 
                                   {/* Group */}
                                   <div className="flex items-center gap-2">
-                                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <User className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                                     <span>
                                       {group ? `${group.name} (${group.label})` : "อื่น ๆ"}
                                     </span>
@@ -594,7 +639,7 @@ export default function CalendarView({
                                   {/* Location */}
                                   {evt.location && (
                                     <div className="flex items-start gap-2">
-                                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                      <MapPin className="w-3.5 h-3.5 text-slate-600 shrink-0 mt-0.5" />
                                       <span className="break-all">
                                         {evt.location}
                                       </span>
@@ -663,6 +708,10 @@ export default function CalendarView({
                     <button
                       id={`cell-mobile-${cell.dateStr}`}
                       key={`mob-${cell.dateStr}-${idx}`}
+                      type="button"
+                      aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
+                      aria-pressed={isSelected}
+                      aria-current={isToday ? "date" : undefined}
                       onClick={() => onSelectDate(cell.dateStr)}
                       className={`aspect-square p-1 bg-white flex flex-col items-center justify-between transition-colors relative cursor-pointer ${
                         !cell.isCurrentMonth ? "opacity-30" : ""
@@ -685,7 +734,7 @@ export default function CalendarView({
                       {/* Dots indicator */}
                       <div className="flex gap-0.5 justify-center items-center h-2 overflow-hidden mt-0.5">
                         {holiday && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                         )}
                         {dayEvents.slice(0, 3).map((evt) => {
                           const group = groups.find(g => g.id === evt.group_id);
@@ -715,10 +764,11 @@ export default function CalendarView({
               <button
                 type="button"
                 onClick={() => setAgendaSubTab("meetings")}
+                aria-pressed={agendaSubTab === "meetings"}
                 className={`pb-2.5 text-xs font-bold transition-all relative cursor-pointer ${
                   agendaSubTab === "meetings"
                     ? "text-red-600 font-bold"
-                    : "text-slate-400 hover:text-slate-600 font-medium"
+                    : "text-slate-600 hover:text-slate-600 font-medium"
                 }`}
               >
                 <span>วาระงาน({totalMeetingsCount})</span>
@@ -729,10 +779,11 @@ export default function CalendarView({
               <button
                 type="button"
                 onClick={() => setAgendaSubTab("holidays")}
+                aria-pressed={agendaSubTab === "holidays"}
                 className={`pb-2.5 text-xs font-bold transition-all relative cursor-pointer ${
                   agendaSubTab === "holidays"
                     ? "text-red-600 font-bold"
-                    : "text-slate-400 hover:text-slate-600 font-medium"
+                    : "text-slate-600 hover:text-slate-600 font-medium"
                 }`}
               >
                 <span>วันหยุด({totalHolidaysCount})</span>
@@ -744,13 +795,7 @@ export default function CalendarView({
 
             {agendaSubTab === "meetings" ? (
               meetingAgendaItems.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm/5 animate-fade-in">
-                  <Inbox className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                  <h3 className="text-base font-bold text-slate-800 font-sans">ไม่มีกิจกรรมการประชุมงานในเดือนนี้</h3>
-                  <p className="text-xs text-slate-400 font-sans mt-1.5 max-w-md mx-auto leading-relaxed">
-                    ไม่พบข้อมูลวาระงานประชุมราชการในเดือน {THAI_MONTHS[month]} พ.ศ. {year + 543} ท่านสามารถปรับเปลี่ยนตัวกรองกลุ่มงานหรือเพิ่มกิจกรรมการประชุมใหม่ได้
-                  </p>
-                </div>
+                emptyMeetings("month")
               ) : (
                 <div className="space-y-6">
                   {meetingAgendaItems.map((item) => {
@@ -771,12 +816,12 @@ export default function CalendarView({
                             onClick={() => onSelectDate(item.dateStr)}
                             className="flex items-center gap-2.5 text-left group cursor-pointer"
                           >
-                            <span className={`w-2.5 h-2.5 rounded-full ${isToday ? "bg-red-600 animate-pulse" : "bg-slate-300 group-hover:bg-red-500"} transition-colors`} />
+                            <span className={`w-2.5 h-2.5 rounded-full ${isToday ? "bg-red-600" : "bg-slate-300 group-hover:bg-red-500"} transition-colors`} />
                             <h4 className="text-sm font-bold text-slate-800 font-sans group-hover:text-red-600 transition-colors">
                               {formatSelectedDateThaiWithDay(item.dateStr)}
                             </h4>
                             {isToday && (
-                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md animate-pulse font-sans">
+                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-sans">
                                 วันนี้
                               </span>
                             )}
@@ -795,7 +840,7 @@ export default function CalendarView({
                                 }`}
                                 style={group ? { borderLeftColor: getGroupPalette(group.color).color } : undefined}
                               >
-                                <div className="space-y-2 flex-1 min-w-0">
+                                <div className="event-copy space-y-2 flex-1 min-w-0">
                                   {/* Badges line */}
                                   <div className="flex flex-wrap items-center gap-2 text-xs font-sans">
                                     {evt.start_time && evt.end_time ? (
@@ -850,7 +895,7 @@ export default function CalendarView({
                                   {evt.participant_pdf_path && <ParticipantPdfActions path={evt.participant_pdf_path} canRead={isLoggedIn} onOpen={onOpenParticipantPdf} />}
 
                                   {/* Metadata footer */}
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-slate-50 text-[11px] text-slate-400 font-sans">
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 border-t border-slate-50 text-sm text-slate-600 font-sans">
                                     <span className="flex items-center gap-1">
                                       <MapPin className="w-3.5 h-3.5" />
                                       สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ได้ระบุสถานที่"}</strong>
@@ -858,7 +903,7 @@ export default function CalendarView({
                                     {evt.is_online && evt.online_link && (
                                       <span className="flex items-center gap-1">
                                         <Video className="w-3.5 h-3.5" />
-                                        ลิงก์ออนไลน์: <strong className="text-slate-600 font-medium break-all">{evt.online_link}</strong>
+                                        ลิงก์ออนไลน์: <MeetingLink link={evt.online_link} />
                                       </span>
                                     )}
                                     {evt.is_online && evt.online_resource && (
@@ -879,17 +924,7 @@ export default function CalendarView({
 
                                 {/* Join Online Meeting link & Actions */}
                                 <div className="flex flex-wrap items-center gap-2 shrink-0 md:border-l md:border-slate-100 md:pl-4 self-stretch justify-end md:flex-col md:justify-center">
-                                  {evt.is_online && evt.online_link && (
-                                    <a
-                                      href={buildMeetingHref(evt.online_link)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-colors cursor-pointer shrink-0 w-full animate-pulse animate-duration-1000"
-                                    >
-                                      <span>เข้าร่วมประชุม</span>
-                                      <Video className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
+                                  {evt.is_online && evt.online_link && <MeetingLink link={evt.online_link} button />}
                                   
                                   {isLoggedIn && canManageEvent(evt) && (
                                     <div className="flex items-center gap-1.5 w-full">
@@ -936,7 +971,7 @@ export default function CalendarView({
                 <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm/5 animate-fade-in">
                   <Calendar className="w-16 h-16 text-red-400 mx-auto mb-4" />
                   <h3 className="text-base font-bold text-slate-800 font-sans">ไม่มีวันหยุดราชการหรือสำนักงานในเดือนนี้</h3>
-                  <p className="text-xs text-slate-400 font-sans mt-1.5 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-slate-600 font-sans mt-1.5 max-w-md mx-auto leading-relaxed">
                     ไม่พบข้อมูลวันหยุดนักขัตฤกษ์ในเดือน {THAI_MONTHS[month]} พ.ศ. {year + 543} ท่านสามารถเปิดใช้งานตัวเลือก "แสดงวันหยุดราชการ" หรือตั้งค่าเพิ่มวันหยุดในปฏิทินได้
                   </p>
                 </div>
@@ -960,12 +995,12 @@ export default function CalendarView({
                             onClick={() => onSelectDate(item.dateStr)}
                             className="flex items-center gap-2.5 text-left group cursor-pointer"
                           >
-                            <span className={`w-2.5 h-2.5 rounded-full ${isToday ? "bg-red-600 animate-pulse" : "bg-slate-300 group-hover:bg-red-500"} transition-colors`} />
+                            <span className={`w-2.5 h-2.5 rounded-full ${isToday ? "bg-red-600" : "bg-slate-300 group-hover:bg-red-500"} transition-colors`} />
                             <h4 className="text-sm font-bold text-slate-800 font-sans group-hover:text-red-600 transition-colors">
                               {formatSelectedDateThaiWithDay(item.dateStr)}
                             </h4>
                             {isToday && (
-                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md animate-pulse font-sans">
+                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-sans">
                                 วันนี้
                               </span>
                             )}
@@ -1055,7 +1090,7 @@ export default function CalendarView({
                 <CalendarDays className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-bold text-red-800 font-sans">
-                    วันนี้คือ {holiday.name}
+                    วันหยุด: {holiday.name}
                   </h4>
                   <p className="text-xs text-red-600 font-sans mt-0.5">
                     กำหนดโดยผู้ลงบันทึก: {holiday.created_by || "ระบบ"}
@@ -1086,11 +1121,7 @@ export default function CalendarView({
 
         {/* Selected date events list */}
         {getEventsForDate(selectedDate).length === 0 ? (
-          <div className="text-center py-8 text-slate-400 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
-            <Inbox className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
-            <p className="text-sm font-medium font-sans">ไม่มีกิจกรรมการประชุมในวันนี้</p>
-            <p className="text-xs text-slate-400 font-sans mt-0.5">สามารถกดเพิ่มกิจกรรมการประชุมใหม่ด้านบนได้</p>
-          </div>
+          emptyMeetings("day")
         ) : (
           <div className="space-y-3.5">
             {getEventsForDate(selectedDate).map((evt) => {
@@ -1108,7 +1139,7 @@ export default function CalendarView({
                   />
 
                   {/* Middle content */}
-                  <div className="pl-1.5 space-y-1.5 flex-1">
+                  <div className="event-copy min-w-0 pl-1.5 space-y-1.5 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Start-End Time badge */}
                       {evt.start_time && evt.end_time ? (
@@ -1143,7 +1174,7 @@ export default function CalendarView({
                       )}
                     </div>
 
-                    <h4 className="text-sm font-bold text-slate-850 font-sans">
+                    <h4 className="text-sm font-bold text-slate-900 font-sans">
                       {evt.title}
                     </h4>
 
@@ -1155,26 +1186,26 @@ export default function CalendarView({
 
                     {evt.participant_pdf_path && <ParticipantPdfActions path={evt.participant_pdf_path} canRead={isLoggedIn} onOpen={onOpenParticipantPdf} />}
 
-                    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-slate-450 font-sans">
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <MapPin className="w-3 h-3 text-slate-400" />
+                    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-sm text-slate-600 font-sans">
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <MapPin className="w-3 h-3 text-slate-600" />
                         สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ระบุสถานที่"}</strong>
                       </span>
                       {evt.is_online && evt.online_link && (
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <Video className="w-3 h-3 text-slate-400" />
-                          ลิงก์ออนไลน์: <strong className="text-slate-600 font-medium break-all">{evt.online_link}</strong>
+                        <span className="flex items-center gap-1 text-slate-600">
+                          <Video className="w-3 h-3 text-slate-600" />
+                          ลิงก์ออนไลน์: <MeetingLink link={evt.online_link} />
                         </span>
                       )}
                       {evt.is_online && evt.online_resource && (
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <Video className="w-3 h-3 text-slate-400" />
+                        <span className="flex items-center gap-1 text-slate-600">
+                          <Video className="w-3 h-3 text-slate-600" />
                           จอง {getOnlineResourceLabel(evt.online_resource)}:
                           <strong className="text-slate-600 font-medium">{getOnlineResourceDescription(evt.online_resource)}</strong>
                         </span>
                       )}
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <User className="w-3 h-3 text-slate-400" />
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <User className="w-3 h-3 text-slate-600" />
                         ผู้ลงบันทึก: <strong className="text-slate-600 font-medium">{evt.created_by || "ผู้ดูแลระบบ"}</strong>
                       </span>
                     </div>
@@ -1187,7 +1218,7 @@ export default function CalendarView({
                         id={`edit-event-${evt.id}-btn`}
                         type="button"
                         onClick={() => onEditEvent(evt)}
-                        className="text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150 transition-colors"
+                        className="text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
                       >
                         แก้ไข
                       </button>
@@ -1196,7 +1227,7 @@ export default function CalendarView({
                         type="button"
                         onClick={() => onDuplicateEvent(evt)}
                         title="ทำซ้ำกิจกรรมนี้เป็นรอบใหม่"
-                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-slate-150 transition-colors"
+                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
                       >
                         <Copy className="w-3 h-3" />
                         ทำซ้ำ
@@ -1205,7 +1236,7 @@ export default function CalendarView({
                         id={`delete-event-${evt.id}-btn`}
                         type="button"
                         onClick={() => onDeleteEvent(evt.id)}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50/50 px-2.5 py-1.5 rounded-lg border border-slate-150 transition-colors"
+                        className="text-[11px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50/50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors"
                       >
                         ลบ
                       </button>

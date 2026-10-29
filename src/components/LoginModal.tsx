@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { AlertCircle, KeyRound, Lock, Mail, Shield, X } from "lucide-react";
+import { useModalAccessibility } from "../hooks/useModalAccessibility";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const dialogRef = useModalAccessibility(isOpen, onClose, isLoading);
 
   if (!isOpen) return null;
 
@@ -48,15 +50,17 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto font-sans">
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => { if (!isLoading) onClose(); }} aria-hidden="true" />
 
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 transition-all">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="login-title" aria-describedby="login-description" tabIndex={-1} className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 transition-all">
           <button
             id="close-login-modal-btn"
             type="button"
+            aria-label="ปิดหน้าต่างเข้าสู่ระบบ"
+            disabled={isLoading}
             onClick={onClose}
-            className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-all cursor-pointer"
+            className="absolute right-4 top-4 min-h-11 min-w-11 p-2 text-slate-600 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-all cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -65,61 +69,64 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
             <div className="p-3 bg-red-50 text-red-600 rounded-2xl mb-3 border border-red-100">
               <Shield className="w-10 h-10 text-red-600" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">เข้าสู่ระบบด้วย Supabase Auth</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-              ใช้บัญชีที่สร้างใน Supabase Authentication เพื่อเพิ่ม แก้ไข หรือลบข้อมูลในปฏิทิน กองโรคติดต่อนำโดยแมลง
+            <h2 id="login-title" className="text-lg font-bold text-slate-800">เข้าสู่ระบบ</h2>
+            <p id="login-description" className="text-sm text-slate-600 mt-2 max-w-xs leading-relaxed">
+              ใช้บัญชีหน่วยงานเพื่อเพิ่ม แก้ไข และจัดการกิจกรรมในปฏิทิน
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              <label htmlFor="login-email-input" className="text-sm font-semibold text-slate-700">
                 อีเมลผู้ใช้งาน
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-2.5 text-slate-400 pointer-events-none">
+                <div className="absolute left-3 top-3 text-slate-600 pointer-events-none">
                   <Mail className="w-4 h-4" />
                 </div>
                 <input
                   id="login-email-input"
                   type="email"
+                  autoComplete="username"
+                  data-autofocus
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
                     setError(null);
                   }}
                   placeholder="name@example.go.th"
-                  className="w-full text-xs pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/30 hover:bg-slate-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all"
+                  className="w-full text-base sm:text-sm min-h-11 pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/30 hover:bg-slate-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+              <label htmlFor="login-password-input" className="text-sm font-semibold text-slate-700">
                 รหัสผ่าน
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-2.5 text-slate-400 pointer-events-none">
+                <div className="absolute left-3 top-3 text-slate-600 pointer-events-none">
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
                   id="login-password-input"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     setError(null);
                   }}
-                  placeholder="กรอกรหัสผ่าน Supabase"
-                  className="w-full text-xs pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/30 hover:bg-slate-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all"
+                  placeholder="กรอกรหัสผ่าน"
+                  className="w-full text-base sm:text-sm min-h-11 pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/30 hover:bg-slate-50/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all"
                   required
                 />
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2.5 text-red-700 text-xs">
+              <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2.5 text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
@@ -129,7 +136,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
               id="submit-login-btn"
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-600/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-md shadow-red-600/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -143,10 +150,10 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
           </form>
 
           <div className="mt-6 pt-5 border-t border-slate-100">
-            <div className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+            <div className="flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm text-slate-500">
               <Shield className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                ระบบนี้ไม่มีบัญชีจำลองแล้ว ผู้ที่เข้าสู่ระบบผ่าน Supabase Auth จะสามารถแก้ไขข้อมูลได้ตามนโยบาย RLS
+                หากยังไม่มีบัญชีหรือเข้าสู่ระบบไม่ได้ กรุณาติดต่อผู้ดูแลปฏิทินของหน่วยงาน
               </p>
             </div>
           </div>

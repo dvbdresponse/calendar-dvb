@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SupabaseConfig, UserSession } from "../types";
 import { LogOut, LogIn, Shield, User, Tag, Menu, X, CalendarDays, Database, Plus, ClipboardList, Search } from "lucide-react";
 
@@ -34,25 +34,41 @@ export default function Header({
   onLogout,
 }: HeaderProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    let lastScrollY = window.scrollY;
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
-      if (currentScrollY > lastScrollY && currentScrollY > 50) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-      
-      setLastScrollY(currentScrollY);
+      const headerHasFocus = document.activeElement?.closest("header");
+      setIsVisible(!!headerHasFocus || currentScrollY <= lastScrollY || currentScrollY <= 50);
+      lastScrollY = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    const outsideClick = (event: PointerEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) setIsMobileMenuOpen(false);
+    };
+    document.addEventListener("keydown", dismiss);
+    document.addEventListener("pointerdown", outsideClick);
+    return () => {
+      document.removeEventListener("keydown", dismiss);
+      document.removeEventListener("pointerdown", outsideClick);
+    };
+  }, [isMobileMenuOpen]);
 
   // Current Thai Date format
   const getThaiDateStr = () => {
@@ -68,9 +84,9 @@ export default function Header({
   };
 
   return (
-    <header className={`bg-white border-b border-slate-100 sticky top-0 z-40 backdrop-blur-md bg-white/90 transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <header onFocusCapture={() => setIsVisible(true)} className={`app-header bg-white border-b border-slate-100 sticky top-0 z-40 transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:flex lg:items-center lg:justify-between gap-3">
           
           {/* Logo & Title */}
           <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
@@ -79,35 +95,37 @@ export default function Header({
             </div>
             <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-                <h1 className="text-[13px] sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-tight">
+                <h1 className="text-sm sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-snug">
                   ปฏิทิน กองโรคติดต่อนำโดยแมลง
                 </h1>
                 
                 {/* Connection Status Badge */}
                 <button
                   id="header-supabase-status-badge"
+                  type="button"
+                  aria-label={`${supabaseConfig ? "ข้อมูลส่วนกลาง" : "ข้อมูลในเครื่อง"} · เปิดการตั้งค่าการเชื่อมต่อฐานข้อมูล`}
                   onClick={onOpenSupabaseModal}
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] md:text-[11px] font-semibold cursor-pointer transition-all hover:opacity-90 w-fit ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold cursor-pointer transition-all hover:opacity-90 w-fit ${
                     supabaseConfig 
                       ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
                       : "bg-amber-50 text-amber-700 border border-amber-100"
                   }`}
-                  title={supabaseConfig ? "เชื่อมต่อกับ Supabase สำเร็จ" : "ใช้งานระบบจำลองเก็บข้อมูลในเบราว์เซอร์"}
+                  title="เปิดการตั้งค่าการเชื่อมต่อฐานข้อมูล"
                 >
                   {supabaseConfig ? (
                     <>
                       <Database className="w-3 h-3 text-emerald-600" />
-                      <span>Supabase Live</span>
+                      <span>ข้อมูลส่วนกลาง</span>
                     </>
                   ) : (
                     <>
                       <Database className="w-3 h-3 text-amber-600" />
-                      <span>Local DB</span>
+                      <span>ข้อมูลในเครื่อง</span>
                     </>
                   )}
                 </button>
               </div>
-              <p className="text-[10px] md:text-xs text-slate-500 font-sans mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-xs text-slate-600 font-sans mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="hidden md:inline">ระบบรวมตารางงานประชุมและประสานงานกลุ่มงานต่าง ๆ</span>
                 <span className="hidden md:inline text-slate-200">|</span>
                 <span className="text-slate-600 font-medium">{getThaiDateStr()}</span>
@@ -116,7 +134,7 @@ export default function Header({
           </div>
 
           {/* Quick Actions (Desktop & Mobile) */}
-          <div className="flex items-center justify-end w-full lg:w-auto relative">
+          <div ref={actionsRef} className="flex items-center justify-end self-start lg:self-center relative">
             
             {/* Desktop View */}
             <div className="hidden lg:flex flex-wrap items-center gap-2">
@@ -133,7 +151,7 @@ export default function Header({
                     ) : (
                       <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                     )}
-                    <span className="font-sans font-bold whitespace-nowrap">{user.name}</span>
+                    <span title={user.name} className="font-sans font-bold truncate max-w-44">{user.name}</span>
                   </div>
                   
                   <button
@@ -160,7 +178,7 @@ export default function Header({
               ) : null}
 
               {isAuthLoading && (
-                <span className="text-xs font-bold text-slate-400 px-2">กำลังตรวจสอบผู้ใช้...</span>
+                <span className="text-xs font-bold text-slate-600 px-2">กำลังตรวจสอบผู้ใช้...</span>
               )}
 
               <button
@@ -168,11 +186,11 @@ export default function Header({
                 className={`flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0 ${
                   canManageGroups
                     ? "border-slate-200 hover:border-slate-300 text-slate-700"
-                    : "border-slate-200 text-slate-400 hover:border-indigo-200"
+                    : "border-slate-200 text-slate-600 hover:border-indigo-200"
                 }`}
-                title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "ต้องเข้าสู่ระบบ Supabase Auth จึงจะแก้ไขกลุ่มงานได้"}
+                title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "เข้าสู่ระบบเพื่อจัดการกลุ่มงาน"}
               >
-                <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-400"}`} />
+                <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-600"}`} />
                 <span className={`font-sans whitespace-nowrap ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
                   จัดการกลุ่ม
                 </span>
@@ -197,6 +215,12 @@ export default function Header({
             {/* Mobile View Toggle */}
             <div className="flex lg:hidden w-full justify-end">
               <button
+                ref={menuButtonRef}
+                data-modal-return-focus
+                type="button"
+                aria-label={isMobileMenuOpen ? "ปิดเมนู" : "เปิดเมนู"}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="header-mobile-menu"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="p-1.5 sm:p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors shadow-sm"
               >
@@ -206,7 +230,7 @@ export default function Header({
 
             {/* Mobile Dropdown Menu */}
             {isMobileMenuOpen && (
-              <div className="absolute top-[120%] right-0 min-w-[240px] bg-white border border-slate-100 rounded-2xl shadow-xl z-50 flex flex-col p-3 gap-2 lg:hidden animate-fade-in">
+              <div id="header-mobile-menu" className="absolute top-full mt-2 right-0 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-100 rounded-2xl shadow-xl z-50 flex flex-col p-3 gap-2 lg:hidden">
                 
                 {user ? (
                   <div className="flex flex-col gap-2 border-b border-slate-100 pb-2 mb-1">
@@ -245,7 +269,7 @@ export default function Header({
                       : "border-slate-200 hover:border-indigo-200 text-slate-500"
                   }`}
                 >
-                  <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-400"}`} />
+                  <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-600"}`} />
                   <span className={`font-sans ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
                     จัดการกลุ่ม
                   </span>
@@ -282,17 +306,18 @@ export default function Header({
         </div>
 
         {/* Search Bar & Summary Stats Row */}
-        <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Dynamic Event count */}
-          <div className="text-[11px] md:text-xs text-slate-500 font-sans flex items-center gap-1.5 bg-slate-50 py-1 px-2.5 rounded-lg border border-slate-100 w-fit">
+          <div className="text-sm text-slate-600 font-sans flex items-center gap-1.5 bg-slate-50 py-1 px-2.5 rounded-lg border border-slate-100 w-fit">
             <ClipboardList className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span>มีกิจกรรมทั้งหมดในระบบ: <strong className="text-slate-800 font-bold">{totalEvents}</strong> กิจกรรม</span>
           </div>
 
           {/* Text Search Input */}
           <div className="relative w-full md:w-72 shrink-0">
-            <div className="absolute left-3 top-2 pointer-events-none">
-              <Search className="w-4 h-4 text-slate-400" />
+            <label htmlFor="search-event-input" className="sr-only">ค้นหากิจกรรมการประชุม</label>
+            <div className="absolute left-3 top-3.5 pointer-events-none">
+              <Search className="w-4 h-4 text-slate-600" />
             </div>
             <input
               id="search-event-input"
@@ -300,7 +325,7 @@ export default function Header({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="ค้นหากิจกรรมการประชุม..."
-              className="w-full text-[11px] md:text-xs pl-9 pr-4 py-1.5 md:py-1.5 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all placeholder:text-slate-400"
+              className="w-full text-base sm:text-sm min-h-11 pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all placeholder:text-slate-600"
             />
           </div>
         </div>
