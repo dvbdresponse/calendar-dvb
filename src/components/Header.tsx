@@ -89,7 +89,7 @@ export default function Header({
           
           {/* Logo & Title */}
           <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
-            <div className="p-1.5 sm:p-2 bg-red-50 rounded-2xl flex items-center justify-center shrink-0 border border-red-100 mt-0.5 sm:mt-0">
+            <div className="p-1.5 sm:p-2 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <BeeIcon />
             </div>
             <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
