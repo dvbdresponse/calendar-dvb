@@ -163,17 +163,6 @@ export default function Header({
                 <span className="text-xs font-bold text-slate-400 px-2">กำลังตรวจสอบผู้ใช้...</span>
               )}
 
-              {/* Database settings trigger */}
-              <button
-                id="open-database-settings-btn-desktop"
-                type="button"
-                onClick={onOpenSupabaseModal}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0"
-              >
-                <Database className="w-4 h-4 text-slate-600 shrink-0" />
-                <span className="font-sans whitespace-nowrap">ตั้งค่าฐานข้อมูล</span>
-              </button>
-
               <button
                 onClick={onOpenGroupManagerModal}
                 className={`flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0 ${
@@ -275,16 +264,6 @@ export default function Header({
                     </button>
                   </>
                 )}
-
-                <button
-                  id="open-database-settings-btn-mobile"
-                  type="button"
-                  onClick={() => { onOpenSupabaseModal(); setIsMobileMenuOpen(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-white text-slate-700 text-sm font-semibold transition-all hover:bg-slate-50"
-                >
-                  <Database className="w-4 h-4 text-slate-600 shrink-0" />
-                  <span className="font-sans">ตั้งค่าฐานข้อมูล</span>
-                </button>
 
                 {user && (
                   <button
