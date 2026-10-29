@@ -5,6 +5,7 @@ import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 import { getOnlineResourceDescription, getOnlineResourceLabel } from "../utils/booking";
 import ParticipantPdfActions from "./ParticipantPdfActions";
 import MeetingLink from "./MeetingLink";
+import CalendarEventPreview, { CalendarPreview } from "./CalendarEventPreview";
 
 const getOnlinePlatformLabel = (platform?: string) => {
   if (platform === "zoom") return "Zoom";
@@ -61,6 +62,7 @@ export default function CalendarView({
   const [showHolidays, setShowHolidays] = useState(true);
   const [agendaSubTab, setAgendaSubTab] = useState<"meetings" | "holidays">("meetings");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [preview, setPreview] = useState<CalendarPreview | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -253,6 +255,8 @@ export default function CalendarView({
   return (
     <div className="calendar-surface min-w-0 space-y-4 sm:space-y-6">
       
+      {preview && <CalendarEventPreview preview={preview} onDismiss={() => setPreview(null)} />}
+
       {/* 1. Group & Content Filters Panel */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 sm:p-5">
         <button id="calendar-filter-toggle" type="button" aria-expanded={isFilterOpen} aria-controls="calendar-filters" onClick={() => setIsFilterOpen(!isFilterOpen)} className="md:hidden flex w-full items-center justify-between gap-2 text-sm font-semibold text-slate-800">
@@ -485,6 +489,7 @@ export default function CalendarView({
                       tabIndex={0}
                       aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
                       aria-pressed={isSelected}
+                      aria-describedby={preview?.date === cell.dateStr ? "calendar-event-preview" : undefined}
                       aria-current={isToday ? "date" : undefined}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -559,6 +564,9 @@ export default function CalendarView({
                           return (
                             <div
                               key={evt.id}
+                              data-calendar-event-id={evt.id}
+                              onMouseEnter={(mouse) => setPreview({ event: evt, group, anchor: mouse.currentTarget, date: cell.dateStr })}
+                              onMouseLeave={() => setPreview(null)}
                               className={`group/pill min-w-0 text-xs leading-snug px-1.5 py-0.5 border flex ${
                                 isMultiDay ? "items-center" : "items-start"
                               } gap-1 transition-all relative hover:z-50 ${
@@ -597,82 +605,6 @@ export default function CalendarView({
                               ) : (
                                 <span className={`opacity-0 select-none flex-1 font-sans ${isMultiDay ? "truncate" : "line-clamp-2 break-words"} min-w-0 pointer-events-none`}>{evt.title}</span>
                               )}
-
-                              {/* Premium Popover Tooltip Card */}
-                              <div
-                                className={`absolute bottom-full mb-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 z-50 text-slate-800 text-[11px] text-left hidden group-hover/pill:block pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150 ${
-                                  (idx % 7) <= 1 
-                                    ? "left-0 origin-bottom-left" 
-                                    : (idx % 7) >= 5 
-                                      ? "right-0 origin-bottom-right" 
-                                      : "left-1/2 -translate-x-1/2 origin-bottom"
-                                }`}
-                              >
-                                {/* Title and Online Badge */}
-                                <div className="font-bold text-slate-900 leading-snug mb-2 font-sans border-b border-slate-100 pb-1.5 break-words flex items-start justify-between gap-1.5">
-                                  <span className="flex-1 text-[12px]">{evt.title}</span>
-                                  {evt.is_online && (
-                                    <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-md border border-emerald-100 font-bold uppercase shrink-0">
-                                      Online
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Details List */}
-                                <div className="space-y-2 font-semibold font-sans text-slate-600">
-                                  {/* Time */}
-                                  <div className="flex items-center gap-2">
-                                    <Clock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                                    <span>
-                                      {evt.start_time ? `${evt.start_time} - ${evt.end_time || ""} น.` : "ตลอดทั้งวัน"}
-                                    </span>
-                                  </div>
-
-                                  {/* Group */}
-                                  <div className="flex items-center gap-2">
-                                    <User className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                                    <span>
-                                      {group ? `${group.name} (${group.label})` : "อื่น ๆ"}
-                                    </span>
-                                  </div>
-
-                                  {/* Location */}
-                                  {evt.location && (
-                                    <div className="flex items-start gap-2">
-                                      <MapPin className="w-3.5 h-3.5 text-slate-600 shrink-0 mt-0.5" />
-                                      <span className="break-all">
-                                        {evt.location}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {evt.is_online && evt.online_link && (
-                                    <div className="flex items-start gap-2">
-                                      <Video className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                                      <span className="break-all">
-                                        {evt.online_link}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {evt.is_online && evt.online_resource && (
-                                    <div className="flex items-start gap-2">
-                                      <Video className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-                                      <span className="break-all">
-                                        จอง {getOnlineResourceLabel(evt.online_resource)}
-                                        {getOnlineResourceDescription(evt.online_resource) ? `: ${getOnlineResourceDescription(evt.online_resource)}` : ""}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* Description */}
-                                  {evt.description && (
-                                    <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-normal leading-relaxed break-words">
-                                      {evt.description}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
                             </div>
                           );
                         })}
@@ -901,9 +833,9 @@ export default function CalendarView({
                                       สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ได้ระบุสถานที่"}</strong>
                                     </span>
                                     {evt.is_online && evt.online_link && (
-                                      <span className="flex items-center gap-1">
-                                        <Video className="w-3.5 h-3.5" />
-                                        ลิงก์ออนไลน์: <MeetingLink link={evt.online_link} />
+                                      <span className="flex min-w-0 flex-wrap items-center gap-1">
+                                        <span className="inline-flex shrink-0 items-center gap-1"><Video className="w-3.5 h-3.5" />ลิงก์ออนไลน์:</span>
+                                        <MeetingLink link={evt.online_link} meeting={evt} />
                                       </span>
                                     )}
                                     {evt.is_online && evt.online_resource && (
@@ -924,7 +856,7 @@ export default function CalendarView({
 
                                 {/* Join Online Meeting link & Actions */}
                                 <div className="flex flex-wrap items-center gap-2 shrink-0 md:border-l md:border-slate-100 md:pl-4 self-stretch justify-end md:flex-col md:justify-center">
-                                  {evt.is_online && evt.online_link && <MeetingLink link={evt.online_link} button />}
+                                  {evt.is_online && evt.online_link && <MeetingLink link={evt.online_link} meeting={evt} button />}
                                   
                                   {isLoggedIn && canManageEvent(evt) && (
                                     <div className="flex items-center gap-1.5 w-full">
@@ -1192,9 +1124,9 @@ export default function CalendarView({
                         สถานที่: <strong className="text-slate-600 font-medium">{evt.location || "ไม่ระบุสถานที่"}</strong>
                       </span>
                       {evt.is_online && evt.online_link && (
-                        <span className="flex items-center gap-1 text-slate-600">
-                          <Video className="w-3 h-3 text-slate-600" />
-                          ลิงก์ออนไลน์: <MeetingLink link={evt.online_link} />
+                        <span className="flex min-w-0 flex-wrap items-center gap-1 text-slate-600">
+                          <span className="inline-flex shrink-0 items-center gap-1"><Video className="w-3 h-3 text-slate-600" />ลิงก์ออนไลน์:</span>
+                          <MeetingLink link={evt.online_link} meeting={evt} />
                         </span>
                       )}
                       {evt.is_online && evt.online_resource && (

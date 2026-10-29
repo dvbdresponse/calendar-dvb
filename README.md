@@ -29,7 +29,7 @@ React + Vite calendar app for office meeting schedules. The app supports two mod
 
 ## Supabase Setup
 
-1. Open the app and click the data connection badge (ข้อมูลส่วนกลาง / ข้อมูลในเครื่อง) in the header.
+1. Before configuring Supabase, open the local demo and click **ตั้งค่า Supabase** in the setup notice.
 2. Copy the SQL schema from the Supabase setup modal.
 3. Run it in Supabase SQL Editor.
 4. Create users in Supabase Authentication.
@@ -46,7 +46,7 @@ The SQL enables RLS. Calendar events and groups are publicly readable. Creating,
 
 ## Participant PDF Attachments
 
-Meetings support one PDF participant list up to 2 MiB (2,097,152 bytes). Files are private in Supabase Storage and require a signed-in user to open or download. Existing projects must run the PDF-specific SQL from database settings once. Local demo attachments use IndexedDB in the current browser. See [setup and behavior](docs/participant-pdfs.md).
+Meetings support one PDF participant list up to 2 MiB (2,097,152 bytes). Files are private in Supabase Storage and require a signed-in user to open or download. Existing projects must run the [PDF migration](supabase/migrations/202610280001_participant_pdfs.sql) once. Local demo attachments use IndexedDB in the current browser. See [setup and behavior](docs/participant-pdfs.md).
 
 ## LINE Daily Digest Notifications
 

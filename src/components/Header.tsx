@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { SupabaseConfig, UserSession } from "../types";
-import { LogOut, LogIn, Shield, User, Tag, Menu, X, CalendarDays, Database, Plus, ClipboardList, Search } from "lucide-react";
+import { LogOut, LogIn, Shield, User, Tag, Menu, X, Plus, ClipboardList, Search } from "lucide-react";
+import MosquitoIcon from "./MosquitoIcon";
 
 interface HeaderProps {
   searchTerm: string;
   onSearchChange: (val: string) => void;
   supabaseConfig: SupabaseConfig | null;
-  onOpenSupabaseModal: () => void;
   onOpenAddEventModal: () => void;
   onOpenGroupManagerModal: () => void;
   totalEvents: number;
@@ -22,7 +22,6 @@ export default function Header({
   searchTerm,
   onSearchChange,
   supabaseConfig,
-  onOpenSupabaseModal,
   onOpenAddEventModal,
   onOpenGroupManagerModal,
   totalEvents,
@@ -91,40 +90,12 @@ export default function Header({
           {/* Logo & Title */}
           <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
             <div className="p-1.5 sm:p-2 bg-red-50 rounded-2xl flex items-center justify-center shrink-0 border border-red-100 mt-0.5 sm:mt-0">
-              <CalendarDays className="w-8 h-8 text-red-600" />
+              <MosquitoIcon />
             </div>
             <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-                <h1 className="text-sm sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-snug">
-                  ปฏิทิน กองโรคติดต่อนำโดยแมลง
-                </h1>
-                
-                {/* Connection Status Badge */}
-                <button
-                  id="header-supabase-status-badge"
-                  type="button"
-                  aria-label={`${supabaseConfig ? "ข้อมูลส่วนกลาง" : "ข้อมูลในเครื่อง"} · เปิดการตั้งค่าการเชื่อมต่อฐานข้อมูล`}
-                  onClick={onOpenSupabaseModal}
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold cursor-pointer transition-all hover:opacity-90 w-fit ${
-                    supabaseConfig 
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-                      : "bg-amber-50 text-amber-700 border border-amber-100"
-                  }`}
-                  title="เปิดการตั้งค่าการเชื่อมต่อฐานข้อมูล"
-                >
-                  {supabaseConfig ? (
-                    <>
-                      <Database className="w-3 h-3 text-emerald-600" />
-                      <span>ข้อมูลส่วนกลาง</span>
-                    </>
-                  ) : (
-                    <>
-                      <Database className="w-3 h-3 text-amber-600" />
-                      <span>ข้อมูลในเครื่อง</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <h1 className="text-sm sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-snug">
+                ปฏิทิน กองโรคติดต่อนำโดยแมลง
+              </h1>
               <p className="text-xs text-slate-600 font-sans mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="hidden md:inline">ระบบรวมตารางงานประชุมและประสานงานกลุ่มงานต่าง ๆ</span>
                 <span className="hidden md:inline text-slate-200">|</span>

@@ -715,7 +715,6 @@ export default function App() {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         supabaseConfig={supabaseConfig}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onOpenAddEventModal={() => {
           if (!canCreateEvent) {
             if (!isSupabaseMode) {
