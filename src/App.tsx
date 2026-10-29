@@ -743,7 +743,7 @@ export default function App() {
           }
           setIsGroupManagerModalOpen(true);
         }}
-        totalEvents={events.length}
+        totalEvents={events.filter((event) => !event.is_holiday).length}
         user={user}
         isAuthLoading={isAuthLoading}
         canCreateEvent={canCreateEvent}
