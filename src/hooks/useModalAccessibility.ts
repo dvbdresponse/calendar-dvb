@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
 
+// A PDF can open above an editing dialog. Only the top dialog owns focus/Escape.
+const modalStack: HTMLDivElement[] = [];
+let originalBodyOverflow = "";
+
 /** Keep keyboard focus inside an open modal and return it to its opener. */
 export function useModalAccessibility(isOpen: boolean, onClose: () => void, busy = false) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -12,8 +16,10 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void, busy
     const dialog = dialogRef.current;
     if (!isOpen || !dialog) return;
     const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
+    if (!modalStack.length) originalBodyOverflow = document.body.style.overflow;
+    modalStack.push(dialog);
     document.body.style.overflow = "hidden";
+    const isTopModal = () => modalStack[modalStack.length - 1] === dialog;
     const focusable = () => [...dialog.querySelectorAll<HTMLElement>(
       'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]'
     )].filter(element => element.getClientRects().length > 0 && !element.closest('[inert]'));
@@ -21,6 +27,7 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void, busy
     focusFirst();
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isTopModal()) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -43,16 +50,19 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void, busy
       }
     };
     const handleFocus = (event: FocusEvent) => {
-      if (!dialog.contains(event.target as Node)) focusFirst();
+      if (isTopModal() && !dialog.contains(event.target as Node)) focusFirst();
     };
     document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("focusin", handleFocus);
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("focusin", handleFocus);
-      document.body.style.overflow = previousOverflow;
+      const wasTopModal = isTopModal();
+      const index = modalStack.indexOf(dialog);
+      if (index !== -1) modalStack.splice(index, 1);
+      if (!modalStack.length) document.body.style.overflow = originalBodyOverflow;
       const returnFocus = opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-modal-return-focus]');
-      returnFocus?.focus({ preventScroll: true });
+      if (wasTopModal) returnFocus?.focus({ preventScroll: true });
     };
   }, [isOpen]);
 

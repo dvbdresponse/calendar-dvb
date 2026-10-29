@@ -35,7 +35,7 @@ const useLocalPdfStore = async <T>(mode: IDBTransactionMode, operation: (store: 
 
 const storageError = (message: string) => {
   if (/bucket|row.level|policy|permission|not found/i.test(message)) {
-    return new Error("ยังใช้พื้นที่แนบไฟล์ไม่ได้ กรุณารัน SQL สำหรับแนบ PDF จากหน้าตั้งค่าฐานข้อมูล แล้วเข้าสู่ระบบอีกครั้ง");
+    return new Error("ยังเปิดไฟล์แนบไม่ได้ กรุณาแจ้งผู้ดูแลให้ตรวจสอบไฟล์และสิทธิ์อ่านรายชื่อผู้เข้าร่วม");
   }
   return new Error(`จัดการไฟล์ PDF ไม่สำเร็จ: ${message}`);
 };
@@ -78,8 +78,7 @@ export const getParticipantPdfUrl = async (path: string, config: SupabaseConfig 
     return URL.createObjectURL(blob);
   }
   const client = createDynamicSupabaseClient(config);
-  if (!(await getCurrentSession(client))) throw new Error("กรุณาเข้าสู่ระบบก่อนเปิดรายชื่อผู้เข้าร่วมประชุม");
-  const { data, error } = await client.storage.from(PARTICIPANT_PDF_BUCKET).createSignedUrl(path, 60, {
+  const { data, error } = await client.storage.from(PARTICIPANT_PDF_BUCKET).createSignedUrl(path, 600, {
     ...(download ? { download: PARTICIPANT_PDF_FILENAME } : {}),
   });
   if (error) throw storageError(error.message);

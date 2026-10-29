@@ -114,7 +114,6 @@ export default function CalendarEventCard({
         {event.participant_pdf_path && (
           <ParticipantPdfActions
             path={event.participant_pdf_path}
-            canRead={isLoggedIn}
             onOpen={onOpenParticipantPdf}
           />
         )}

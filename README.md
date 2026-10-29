@@ -46,7 +46,7 @@ The SQL enables RLS. Calendar events and groups are publicly readable. Creating,
 
 ## Participant PDF Attachments
 
-Meetings support one PDF participant list up to 2 MiB (2,097,152 bytes). Files are private in Supabase Storage and require a signed-in user to open or download. Existing projects must run the [PDF migration](supabase/migrations/202610280001_participant_pdfs.sql) once. Local demo attachments use IndexedDB in the current browser. See [setup and behavior](docs/participant-pdfs.md).
+Meetings support one PDF participant list up to 2 MiB (2,097,152 bytes). Everyone can view or download PDFs attached to public events without signing in. Uploads and deletion require authentication. Files remain in a private Supabase bucket with signed links that expire after 10 minutes. Existing projects must apply the [PDF setup](supabase/migrations/202610280001_participant_pdfs.sql) and [guest read migration](supabase/migrations/202610290001_public_participant_pdfs.sql). The built-in PDF.js reader works without a browser PDF plugin or popup, including mobile webviews such as LINE. Local demo attachments use IndexedDB in the current browser. See [setup and behavior](docs/participant-pdfs.md).
 
 ## LINE Daily Digest Notifications
 

@@ -1015,11 +1015,11 @@ export default function EventFormModal({
               </label>
               <p id="participant-pdf-help" className="text-xs leading-relaxed text-slate-600">
                 แนบ PDF ได้ 1 ไฟล์ ขนาดไม่เกิน 2 MB
-                {isLocalMode ? " · ไฟล์ทดลองเปิดได้เฉพาะในเบราว์เซอร์นี้" : " · เฉพาะผู้เข้าสู่ระบบเท่านั้นที่เปิดดูได้"}
+                {isLocalMode ? " · ไฟล์ทดลองเปิดได้เฉพาะในเบราว์เซอร์นี้" : " · ทุกคนดูรายชื่อที่แนบกับกิจกรรมได้โดยไม่ต้องเข้าสู่ระบบ"}
               </p>
               {editingEvent?.participant_pdf_path && !removePdf && !pdfFile && (
                 <div className="space-y-2">
-                  <ParticipantPdfActions path={editingEvent.participant_pdf_path} canRead onOpen={onOpenParticipantPdf} />
+                  <ParticipantPdfActions path={editingEvent.participant_pdf_path} onOpen={onOpenParticipantPdf} />
                   <button type="button" onClick={() => setRemovePdf(true)} className="min-h-9 text-xs font-medium text-red-700 underline underline-offset-4 hover:text-red-800 focus-visible:outline-2 focus-visible:outline-red-600">
                     นำไฟล์แนบเดิมออก
                   </button>

@@ -235,7 +235,7 @@ export default function SupabaseConfigModal({
 
           <section className="space-y-3 border-t border-slate-200 pt-5" aria-labelledby="participant-storage-title">
             <h4 id="participant-storage-title" className="text-sm font-semibold text-slate-800">เปิดใช้ไฟล์รายชื่อผู้เข้าร่วมประชุม</h4>
-            <p className="text-xs leading-relaxed text-slate-600">สำหรับฐานข้อมูลที่ใช้อยู่: คัดลอก SQL ด้านล่างไปรันใน Supabase SQL Editor หนึ่งครั้ง เพื่อเพิ่มพื้นที่แนบ PDF ส่วนตัว รองรับไฟล์ละไม่เกิน 2 MB</p>
+            <p className="text-xs leading-relaxed text-slate-600">คัดลอก SQL ด้านล่างไปรันใน Supabase SQL Editor เพื่อเปิดใช้ PDF และให้ทุกคนดูรายชื่อที่แนบกับกิจกรรมได้โดยไม่ต้องเข้าสู่ระบบ รองรับไฟล์ละไม่เกิน 2 MB</p>
             <button id="copy-participant-pdf-sql-btn" type="button" onClick={handleCopyPdfSql} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
               {pdfSqlCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {pdfSqlCopied ? "คัดลอก SQL สำหรับแนบ PDF แล้ว" : "คัดลอก SQL สำหรับแนบ PDF"}

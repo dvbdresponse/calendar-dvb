@@ -19,8 +19,10 @@ import EventFormModal from "./components/EventFormModal";
 import SupabaseConfigModal from "./components/SupabaseConfigModal";
 import LoginModal from "./components/LoginModal";
 import GroupManagerModal from "./components/GroupManagerModal";
+import ParticipantPdfViewer from "./components/ParticipantPdfViewer";
 import { findBookingConflict } from "./utils/booking";
 import { getParticipantPdfUrl, PARTICIPANT_PDF_FILENAME, ParticipantPdfChange, removeParticipantPdf, uploadParticipantPdf } from "./utils/participantPdf";
+import { isLineBrowser } from "./utils/pdfLinks";
 
 const MeetingStatsDashboard = lazy(() => import("./components/MeetingStatsDashboard"));
 
@@ -193,6 +195,7 @@ export default function App() {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [participantPdfPath, setParticipantPdfPath] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"calendar" | "analytics">("calendar");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeGroupFilters, setActiveGroupFilters] = useState<string[]>([]);
@@ -418,33 +421,20 @@ export default function App() {
   };
 
   const handleOpenParticipantPdf = async (path: string, download = false) => {
-    if (isSupabaseMode && !user) {
-      setIsLoginModalOpen(true);
+    if (!download || isLineBrowser(navigator.userAgent)) {
+      setParticipantPdfPath(path);
       return;
     }
-    let pdfWindow: Window | null = null;
     try {
-      if (!download) {
-        pdfWindow = window.open("about:blank", "_blank");
-        if (!pdfWindow) throw new Error("เบราว์เซอร์บล็อกหน้าต่าง PDF กรุณาอนุญาตป๊อปอัปหรือกดดาวน์โหลด");
-        pdfWindow.opener = null;
-        pdfWindow.document.title = PARTICIPANT_PDF_FILENAME;
-        pdfWindow.document.body.textContent = "กำลังเปิดไฟล์ PDF…";
-      }
       const url = await getParticipantPdfUrl(path, supabaseConfig, download);
-      if (pdfWindow) {
-        pdfWindow.location.href = url;
-      } else {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = PARTICIPANT_PDF_FILENAME;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = PARTICIPANT_PDF_FILENAME;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       if (url.startsWith("blob:")) setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (error: any) {
-      pdfWindow?.close();
       showToast(error.message || "เปิดไฟล์ PDF ไม่สำเร็จ กรุณาลองใหม่", "error");
     }
   };
@@ -964,6 +954,10 @@ export default function App() {
         onOpenParticipantPdf={handleOpenParticipantPdf}
         onSave={handleSaveEvent}
       />
+
+      {participantPdfPath && (
+        <ParticipantPdfViewer path={participantPdfPath} config={supabaseConfig} onClose={() => setParticipantPdfPath(null)} />
+      )}
 
       <SupabaseConfigModal
         isOpen={isSupabaseModalOpen}
