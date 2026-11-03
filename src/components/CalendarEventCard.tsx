@@ -60,14 +60,14 @@ export default function CalendarEventCard({
     <article
       id={cardId}
       aria-labelledby={`${cardId}-title`}
-      className={`calendar-event-card event-copy grid w-full min-w-0 gap-4 rounded-xl border border-slate-200 border-l-[3px] bg-white p-3 sm:p-4 ${showActions ? "lg:grid-cols-[minmax(0,1fr)_18rem]" : ""}`}
-      style={{ borderLeftColor: getGroupPalette(group?.color).color }}
+      className={`calendar-event-card event-copy relative grid w-full min-w-0 gap-3 overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3.5 pl-4 transition-shadow hover:shadow-md hover:shadow-slate-900/5 sm:p-4 sm:pl-5 ${showActions ? "@2xl:grid-cols-[minmax(0,1fr)_16rem] @2xl:gap-4" : ""}`}
     >
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: getGroupPalette(group?.color).color }} />
       <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-700">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-2 py-1 font-semibold tabular-nums text-white">
             <Clock
-              className="h-3 w-3 shrink-0 text-red-600"
+              className="h-3 w-3 shrink-0 text-red-300"
               aria-hidden="true"
             />
             {event.start_time && event.end_time
@@ -102,12 +102,12 @@ export default function CalendarEventCard({
 
         <Heading
           id={`${cardId}-title`}
-          className="font-bold leading-relaxed text-slate-900"
+          className="font-semibold leading-snug text-slate-900"
         >
           {event.title}
         </Heading>
         {event.description && (
-          <p className="whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50/50 p-2 leading-relaxed text-slate-600">
+          <p className="whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 leading-relaxed text-slate-600">
             {event.description}
           </p>
         )}
@@ -118,13 +118,13 @@ export default function CalendarEventCard({
           />
         )}
 
-        <div className="flex flex-wrap items-start gap-x-4 gap-y-2 pt-1 text-sm text-slate-600">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5 pt-0.5 text-sm text-slate-600">
           <span className="inline-flex min-w-0 items-start gap-1">
             <MapPin
               className="mt-0.5 h-3.5 w-3.5 shrink-0"
               aria-hidden="true"
             />
-            <span>สถานที่: {event.location || "ไม่ระบุสถานที่"}</span>
+            <span>{event.location || "ไม่ระบุสถานที่"}</span>
           </span>
           {showMeeting && (
             <span className="flex min-w-0 flex-wrap items-start gap-1">
@@ -147,15 +147,15 @@ export default function CalendarEventCard({
               </span>
             </span>
           )}
-          <span className="inline-flex min-w-0 basis-full items-start gap-1">
+          <span className="inline-flex min-w-0 basis-full items-start gap-1 text-xs text-slate-500">
             <User className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>ผู้ลงบันทึก: {event.created_by || "ผู้ดูแลระบบ"}</span>
+            <span>บันทึกโดย {event.created_by || "ผู้ดูแลระบบ"}</span>
           </span>
         </div>
       </div>
 
       {showActions && (
-        <div className="calendar-event-card__actions flex min-w-0 flex-col justify-center gap-2 border-t border-slate-100 pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4">
+        <div className="calendar-event-card__actions flex min-w-0 flex-col justify-center gap-2 border-t border-slate-100 pt-3 @2xl:border-t-0 @2xl:border-l @2xl:pt-0 @2xl:pl-4">
           {showMeeting && (
             <MeetingLink link={event.online_link!} meeting={event} button />
           )}
@@ -165,7 +165,7 @@ export default function CalendarEventCard({
                 id={actionId("edit")}
                 type="button"
                 onClick={() => onEdit(event)}
-                className="min-h-11 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                className="min-h-10 rounded-lg bg-slate-100 px-2 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
               >
                 แก้ไข
               </button>
@@ -174,7 +174,7 @@ export default function CalendarEventCard({
                 type="button"
                 onClick={() => onDuplicate(event)}
                 title="ทำซ้ำกิจกรรมนี้เป็นรอบใหม่"
-                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800"
               >
                 <Copy className="h-3 w-3 shrink-0" aria-hidden="true" />
                 ทำซ้ำ
@@ -183,7 +183,7 @@ export default function CalendarEventCard({
                 id={actionId("delete")}
                 type="button"
                 onClick={() => onDelete(event.id)}
-                className="min-h-11 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                className="min-h-10 rounded-lg bg-slate-100 px-2 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-red-50 hover:text-red-700"
               >
                 ลบ
               </button>

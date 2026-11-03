@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { SupabaseConfig, UserSession } from "../types";
-import { LogOut, LogIn, Shield, User, Tag, Menu, X, Plus, ClipboardList, Search } from "lucide-react";
+import { LogOut, LogIn, Tag, Menu, X, Plus, Search, CalendarDays, BarChart3 } from "lucide-react";
 import BeeIcon from "./BeeIcon";
+
+type AppTab = "calendar" | "analytics";
 
 interface HeaderProps {
   searchTerm: string;
@@ -16,6 +18,77 @@ interface HeaderProps {
   canManageGroups: boolean;
   onOpenLoginModal: () => void;
   onLogout: () => void;
+  activeTab: AppTab;
+  onTabChange: (tab: AppTab) => void;
+}
+
+const THAI_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+const THAI_DAYS = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+
+const getThaiDateStr = () => {
+  const now = new Date();
+  return `วัน${THAI_DAYS[now.getDay()]}ที่ ${now.getDate()} ${THAI_MONTHS[now.getMonth()]} ${now.getFullYear() + 543}`;
+};
+
+const TABS: { id: AppTab; label: string; icon: typeof CalendarDays }[] = [
+  { id: "calendar", label: "ปฏิทิน", icon: CalendarDays },
+  { id: "analytics", label: "สถิติ", icon: BarChart3 },
+];
+
+function TabSwitcher({ activeTab, onTabChange, className = "", idSuffix = "" }: { activeTab: AppTab; onTabChange: (tab: AppTab) => void; className?: string; idSuffix?: string }) {
+  return (
+    <nav aria-label="มุมมองหลัก" className={`flex items-center rounded-xl bg-slate-100 p-1 ${className}`}>
+      {TABS.map(({ id, label, icon: Icon }) => {
+        const isActive = activeTab === id;
+        return (
+          <button
+            key={id}
+            id={`tab-${id}${idSuffix}-btn`}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => onTabChange(id)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all ${
+              isActive ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Icon className={`h-4 w-4 ${isActive ? "text-red-600" : ""}`} aria-hidden="true" />
+            {label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function SearchField({ id, value, onChange, className = "" }: { id: string; value: string; onChange: (val: string) => void; className?: string }) {
+  return (
+    <div className={`relative ${className}`}>
+      <label htmlFor={id} className="sr-only">ค้นหากิจกรรมการประชุม</label>
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+      <input
+        id={id}
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="ค้นหากิจกรรม สถานที่ ผู้บันทึก..."
+        className="min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-9 text-base text-slate-800 transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-red-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-red-100 sm:text-sm"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="ล้างคำค้นหา"
+          className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+          style={{ minHeight: "1.75rem" }}
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function Header({
@@ -31,24 +104,12 @@ export default function Header({
   canManageGroups,
   onOpenLoginModal,
   onLogout,
+  activeTab,
+  onTabChange,
 }: HeaderProps) {
-  const [isVisible, setIsVisible] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const headerHasFocus = document.activeElement?.closest("header");
-      setIsVisible(!!headerHasFocus || currentScrollY <= lastScrollY || currentScrollY <= 50);
-      lastScrollY = currentScrollY;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -69,237 +130,181 @@ export default function Header({
     };
   }, [isMobileMenuOpen]);
 
-  // Current Thai Date format
-  const getThaiDateStr = () => {
-    const months = [
-      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-      "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-    ];
-    const now = new Date();
-    const day = now.getDate();
-    const month = months[now.getMonth()];
-    const year = now.getFullYear() + 543; // Buddhist Era
-    return `วันปัจจุบัน: วันที่ ${day} ${month} พ.ศ. ${year}`;
-  };
+  const userInitial = user?.name?.trim().charAt(0) || "U";
 
   return (
-    <header onFocusCapture={() => setIsVisible(true)} className={`app-header bg-white border-b border-slate-100 sticky top-0 z-40 transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:flex lg:items-center lg:justify-between gap-3">
-          
-          {/* Logo & Title */}
-          <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
-            <div className="p-1.5 sm:p-2 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-              <BeeIcon />
-            </div>
-            <div className="flex flex-col gap-1 sm:gap-0 w-full min-w-0">
-              <h1 className="text-sm sm:text-base md:text-xl font-bold tracking-tight font-sans text-slate-900 leading-snug">
-                ปฏิทินกองโรคติดต่อนำโดยแมลง
-              </h1>
-              <p className="text-xs text-slate-600 font-sans mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="hidden md:inline">ระบบรวมตารางงานประชุมและประสานงานกลุ่มงานต่าง ๆ</span>
-                <span className="hidden md:inline text-slate-200">|</span>
-                <span className="text-slate-600 font-medium">{getThaiDateStr()}</span>
-              </p>
-            </div>
+    <header className="app-header sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-lg supports-[backdrop-filter]:bg-white/70">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 ring-1 ring-amber-200/70">
+            <BeeIcon />
           </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold leading-tight text-slate-900 sm:text-base">
+              ปฏิทินกองโรคติดต่อนำโดยแมลง
+            </h1>
+            <p className="truncate text-xs text-slate-500">
+              {getThaiDateStr()}
+              <span className="hidden sm:inline"> · {totalEvents} กิจกรรมในระบบ</span>
+            </p>
+          </div>
+        </div>
 
-          {/* Quick Actions (Desktop & Mobile) */}
-          <div ref={actionsRef} className="flex items-center justify-end self-start lg:self-center relative">
-            
-            {/* Desktop View */}
-            <div className="hidden lg:flex flex-wrap items-center gap-2">
-              {/* User Session Badge & Logout */}
-              {user ? (
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                    user.role === "admin"
-                      ? "bg-indigo-50/50 border-indigo-200 text-indigo-700"
-                      : "bg-emerald-50/50 border-emerald-200 text-emerald-700"
-                  }`}>
-                    {user.role === "admin" ? (
-                      <Shield className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                    ) : (
-                      <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    )}
-                    <span title={user.name} className="font-sans font-bold truncate max-w-44">{user.name}</span>
-                  </div>
-                  
-                  <button
-                    id="header-logout-btn-desktop"
-                    type="button"
-                    onClick={onLogout}
-                    className="flex items-center justify-center gap-1 px-2.5 py-1.5 border border-slate-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 rounded-xl text-slate-500 text-xs font-bold transition-all cursor-pointer shrink-0"
-                    title="ออกจากระบบ"
-                  >
-                    <LogOut className="w-3.5 h-3.5 shrink-0" />
-                    <span className="font-sans whitespace-nowrap">ออก</span>
-                  </button>
-                </div>
-              ) : supabaseConfig ? (
-                <button
-                  id="header-login-btn-desktop"
-                  type="button"
-                  onClick={onOpenLoginModal}
-                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-slate-50 hover:bg-white text-slate-700 text-xs font-bold transition-all cursor-pointer shadow-sm transform hover:-translate-y-0.5 shrink-0"
-                >
-                  <LogIn className="w-4 h-4 text-red-600 shrink-0" />
-                  <span className="font-sans text-red-600 whitespace-nowrap">เข้าสู่ระบบ</span>
-                </button>
-              ) : null}
+        <TabSwitcher activeTab={activeTab} onTabChange={onTabChange} className="ml-2 hidden md:flex" />
 
-              {isAuthLoading && (
-                <span className="text-xs font-bold text-slate-600 px-2">กำลังตรวจสอบผู้ใช้...</span>
-              )}
+        <div className="hidden flex-1 justify-end lg:flex">
+          <SearchField id="search-event-input" value={searchTerm} onChange={onSearchChange} className="w-full max-w-xs" />
+        </div>
 
+        <div ref={actionsRef} className="relative flex shrink-0 items-center gap-2">
+          <div className="hidden items-center gap-2 lg:flex">
+            {isAuthLoading && <span className="text-xs text-slate-500">กำลังตรวจสอบ...</span>}
+
+            <button
+              type="button"
+              onClick={onOpenGroupManagerModal}
+              title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "เข้าสู่ระบบเพื่อจัดการกลุ่มงาน"}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <Tag className="h-4 w-4" aria-hidden="true" />
+              จัดการกลุ่ม
+            </button>
+
+            {canCreateEvent && (
               <button
-                onClick={onOpenGroupManagerModal}
-                className={`flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white text-xs font-semibold transition-all cursor-pointer shadow-sm hover:bg-slate-50 shrink-0 ${
-                  canManageGroups
-                    ? "border-slate-200 hover:border-slate-300 text-slate-700"
-                    : "border-slate-200 text-slate-600 hover:border-indigo-200"
-                }`}
-                title={canManageGroups ? "จัดการกลุ่มงาน/กองสังกัด" : "เข้าสู่ระบบเพื่อจัดการกลุ่มงาน"}
-              >
-                <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-600"}`} />
-                <span className={`font-sans whitespace-nowrap ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
-                  จัดการกลุ่ม
-                </span>
-              </button>
-
-              {/* Create new event button (Only visible to logged in users) */}
-              {canCreateEvent && (
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    id="open-add-event-btn-desktop"
-                    type="button"
-                    onClick={onOpenAddEventModal}
-                    className="flex items-center justify-center gap-1.5 px-3.5 py-2 border border-transparent rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all shadow-sm shadow-red-600/10 cursor-pointer transform hover:-translate-y-0.5 animate-fade-in shrink-0"
-                  >
-                    <Plus className="w-4 h-4 text-white shrink-0" />
-                    <span className="font-sans whitespace-nowrap">เพิ่มกิจกรรม</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile View Toggle */}
-            <div className="flex lg:hidden w-full justify-end">
-              <button
-                ref={menuButtonRef}
-                data-modal-return-focus
+                id="open-add-event-btn-desktop"
                 type="button"
-                aria-label={isMobileMenuOpen ? "ปิดเมนู" : "เปิดเมนู"}
-                aria-expanded={isMobileMenuOpen}
-                aria-controls="header-mobile-menu"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-1.5 sm:p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors shadow-sm"
+                onClick={onOpenAddEventModal}
+                className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-red-600/20 transition-all hover:bg-red-700 active:scale-[0.98]"
               >
-                {isMobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                เพิ่มกิจกรรม
               </button>
-            </div>
+            )}
 
-            {/* Mobile Dropdown Menu */}
-            {isMobileMenuOpen && (
-              <div id="header-mobile-menu" className="absolute top-full mt-2 right-0 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-100 rounded-2xl shadow-xl z-50 flex flex-col p-3 gap-2 lg:hidden">
-                
-                {user ? (
-                  <div className="flex flex-col gap-2 border-b border-slate-100 pb-2 mb-1">
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold w-full ${
-                      user.role === "admin"
-                        ? "bg-indigo-50/50 border-indigo-200 text-indigo-700"
-                        : "bg-emerald-50/50 border-emerald-200 text-emerald-700"
-                    }`}>
-                      {user.role === "admin" ? (
-                        <Shield className="w-4 h-4 text-indigo-500 shrink-0" />
-                      ) : (
-                        <User className="w-4 h-4 text-emerald-500 shrink-0" />
-                      )}
-                      <span className="font-sans font-bold truncate">{user.name}</span>
-                    </div>
-                  </div>
-                ) : supabaseConfig ? (
-                  <div className="border-b border-slate-100 pb-2 mb-1">
-                    <button
-                      id="header-login-btn-mobile"
-                      type="button"
-                      onClick={() => { onOpenLoginModal(); setIsMobileMenuOpen(false); }}
-                      className="flex items-center gap-2 w-full px-3 py-2 border border-slate-200 hover:border-slate-300 rounded-xl bg-slate-50 text-slate-700 text-sm font-bold transition-all"
-                    >
-                      <LogIn className="w-4 h-4 text-red-600 shrink-0" />
-                      <span className="font-sans text-red-600">เข้าสู่ระบบ</span>
-                    </button>
-                  </div>
-                ) : null}
-
-                <button
-                  onClick={() => { onOpenGroupManagerModal(); setIsMobileMenuOpen(false); }}
-                  className={`flex items-center gap-2 w-full px-3 py-2 border rounded-xl bg-white text-sm font-semibold transition-all hover:bg-slate-50 ${
-                    canManageGroups
-                      ? "border-slate-200 hover:border-slate-300 text-slate-700"
-                      : "border-slate-200 hover:border-indigo-200 text-slate-500"
+            {user ? (
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-1">
+                <span
+                  aria-hidden="true"
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold ${
+                    user.role === "admin" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
                   }`}
                 >
-                  <Tag className={`w-4 h-4 shrink-0 ${canManageGroups ? "text-indigo-600" : "text-slate-600"}`} />
-                  <span className={`font-sans ${canManageGroups ? "text-indigo-600" : "text-slate-500"}`}>
-                    จัดการกลุ่ม
-                  </span>
+                  {userInitial}
+                </span>
+                <span title={user.name} className="max-w-36 truncate px-1.5 text-sm font-medium text-slate-700">{user.name}</span>
+                <button
+                  id="header-logout-btn-desktop"
+                  type="button"
+                  onClick={onLogout}
+                  title="ออกจากระบบ"
+                  aria-label="ออกจากระบบ"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                  style={{ minHeight: "2rem", minWidth: "2rem" }}
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
                 </button>
-
-                {canCreateEvent && (
-                  <>
-                    <button
-                      id="open-add-event-btn-mobile"
-                      type="button"
-                      onClick={() => { onOpenAddEventModal(); setIsMobileMenuOpen(false); }}
-                      className="flex items-center gap-2 w-full px-3 py-2 border border-transparent rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all shadow-sm shadow-red-600/10"
-                    >
-                      <Plus className="w-4 h-4 text-white shrink-0" />
-                      <span className="font-sans">เพิ่มกิจกรรม</span>
-                    </button>
-                  </>
-                )}
-
-                {user && (
-                  <button
-                    id="header-logout-btn-mobile"
-                    type="button"
-                    onClick={() => { onLogout(); setIsMobileMenuOpen(false); }}
-                    className="flex items-center gap-2 w-full mt-1 px-3 py-2 border border-slate-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 rounded-xl text-slate-500 text-sm font-bold transition-all"
-                  >
-                    <LogOut className="w-4 h-4 shrink-0" />
-                    <span className="font-sans">ออกจากระบบ</span>
-                  </button>
-                )}
               </div>
-            )}
+            ) : supabaseConfig ? (
+              <button
+                id="header-login-btn-desktop"
+                type="button"
+                onClick={onOpenLoginModal}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+              >
+                <LogIn className="h-4 w-4 text-red-600" aria-hidden="true" />
+                เข้าสู่ระบบ
+              </button>
+            ) : null}
           </div>
-        </div>
 
-        {/* Search Bar & Summary Stats Row */}
-        <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Dynamic Event count */}
-          <div className="text-sm text-slate-600 font-sans flex items-center gap-1.5 bg-slate-50 py-1 px-2.5 rounded-lg border border-slate-100 w-fit">
-            <ClipboardList className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <span>มีกิจกรรมทั้งหมดในระบบ: <strong className="text-slate-800 font-bold">{totalEvents}</strong> กิจกรรม</span>
-          </div>
+          {canCreateEvent && (
+            <button
+              id="open-add-event-btn-mobile"
+              type="button"
+              onClick={onOpenAddEventModal}
+              aria-label="เพิ่มกิจกรรม"
+              className="flex items-center justify-center rounded-xl bg-red-600 text-white shadow-sm shadow-red-600/20 hover:bg-red-700 lg:hidden"
+            >
+              <Plus className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
 
-          {/* Text Search Input */}
-          <div className="relative w-full md:w-72 shrink-0">
-            <label htmlFor="search-event-input" className="sr-only">ค้นหากิจกรรมการประชุม</label>
-            <div className="absolute left-3 top-3.5 pointer-events-none">
-              <Search className="w-4 h-4 text-slate-600" />
+          <button
+            ref={menuButtonRef}
+            data-modal-return-focus
+            type="button"
+            aria-label={isMobileMenuOpen ? "ปิดเมนู" : "เปิดเมนู"}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="header-mobile-menu"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 lg:hidden"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+
+          {isMobileMenuOpen && (
+            <div
+              id="header-mobile-menu"
+              className="absolute right-0 top-full z-50 mt-2 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10 lg:hidden"
+            >
+              {user && (
+                <div className="mb-1 flex items-center gap-2.5 border-b border-slate-100 px-2 pb-3 pt-1">
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold ${
+                      user.role === "admin" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    {userInitial}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-800">{user.name}</p>
+                    <p className="text-xs text-slate-500">{user.role === "admin" ? "ผู้ดูแลระบบ" : "เจ้าหน้าที่"}</p>
+                  </div>
+                </div>
+              )}
+
+              {!user && supabaseConfig && (
+                <button
+                  id="header-login-btn-mobile"
+                  type="button"
+                  onClick={() => { onOpenLoginModal(); setIsMobileMenuOpen(false); }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                >
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                  เข้าสู่ระบบ
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => { onOpenGroupManagerModal(); setIsMobileMenuOpen(false); }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                <Tag className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                จัดการกลุ่มงาน
+              </button>
+
+              {user && (
+                <button
+                  id="header-logout-btn-mobile"
+                  type="button"
+                  onClick={() => { onLogout(); setIsMobileMenuOpen(false); }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  ออกจากระบบ
+                </button>
+              )}
             </div>
-            <input
-              id="search-event-input"
-              type="text"
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ค้นหากิจกรรมการประชุม..."
-              className="w-full text-base sm:text-sm min-h-11 pl-9 pr-4 py-2 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 text-slate-800 transition-all placeholder:text-slate-600"
-            />
-          </div>
+          )}
         </div>
+      </div>
+
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 pb-3 sm:px-6 md:flex-row md:items-center lg:hidden">
+        <TabSwitcher activeTab={activeTab} onTabChange={onTabChange} className="md:hidden" idSuffix="-mobile" />
+        <SearchField id="search-event-input-mobile" value={searchTerm} onChange={onSearchChange} className="w-full" />
       </div>
     </header>
   );

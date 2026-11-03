@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Video, Calendar, List, CalendarDays, Filter, Inbox } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Video, Calendar, List, CalendarDays, Filter, Inbox } from "lucide-react";
 import { EventData, Group, Holiday } from "../types";
 import { getGroupBadgeStyle, getGroupPalette } from "../utils/groupColors";
 import CalendarEventCard from "./CalendarEventCard";
@@ -219,66 +219,192 @@ export default function CalendarView({
   const totalMeetingsCount = new Set(meetingAgendaItems.flatMap(item => item.dayEvents.map(event => event.id))).size;
   const totalHolidaysCount = new Set(holidayAgendaItems.flatMap(item => item.dayHolidays.map(holiday => holiday.id))).size;
 
-  const canManageHoliday = (holiday: UnifiedHoliday) => {
-    const originalEvent = holiday.id ? events.find(e => e.id === holiday.id) : undefined;
-    return !!originalEvent && canManageEvent(originalEvent);
-  };
-
   const hasFilters = !!searchTerm.trim() || activeGroupFilters.length > 0;
   const emptyMeetings = (period: "day" | "month") => (
-    <div role="status" className="text-center py-8 px-4 text-slate-600 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-      <Inbox className="w-10 h-10 text-slate-500 mx-auto mb-3" aria-hidden="true" />
-      <h3 className="text-base font-semibold text-slate-800">
-        {!showAgendas ? "ซ่อนกิจกรรมอยู่" : hasFilters ? "ไม่พบกิจกรรมที่ตรงกับการค้นหาหรือตัวกรอง" : period === "day" ? "ไม่มีกิจกรรมในวันที่เลือก" : "ไม่มีกิจกรรมในเดือนนี้"}
+    <div role="status" className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-10 text-center">
+      <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm ring-1 ring-slate-200/70">
+        <Inbox className="h-6 w-6" aria-hidden="true" />
+      </span>
+      <h3 className="text-sm font-semibold text-slate-800">
+        {!showAgendas ? "ซ่อนกิจกรรมอยู่" : hasFilters ? "ไม่พบกิจกรรมที่ตรงกับเงื่อนไข" : period === "day" ? "ไม่มีกิจกรรมในวันนี้" : "ไม่มีกิจกรรมในเดือนนี้"}
       </h3>
-      <p className="text-sm mt-2 leading-relaxed">
-        {!showAgendas ? "เปิดการแสดงกิจกรรมเพื่อดูรายการประชุม" : hasFilters ? "ลองล้างคำค้นและตัวกรองกลุ่มงานเพื่อดูรายการทั้งหมด" : isLoggedIn ? "เลือกวันที่อื่น หรือใช้ปุ่มเพิ่มกิจกรรมด้านบนเพื่อบันทึกกิจกรรมใหม่" : "เลือกวันที่อื่นเพื่อดูกิจกรรม หรือเข้าสู่ระบบเพื่อเพิ่มกิจกรรม"}
+      <p className="mt-1 max-w-xs text-sm leading-relaxed text-slate-500">
+        {!showAgendas ? "เปิดการแสดงวาระงานเพื่อดูรายการประชุม" : hasFilters ? "ลองล้างคำค้นหรือตัวกรองกลุ่มงาน" : isLoggedIn ? "เลือกวันอื่น หรือกดปุ่ม “เพิ่มกิจกรรม” เพื่อบันทึกใหม่" : "เลือกวันอื่น หรือเข้าสู่ระบบเพื่อเพิ่มกิจกรรม"}
       </p>
       {!showAgendas ? (
-        <button type="button" onClick={() => setShowAgendas(true)} className="mt-3 px-4 py-2 text-sm font-semibold text-red-700 underline underline-offset-4">แสดงกิจกรรม</button>
+        <button type="button" onClick={() => setShowAgendas(true)} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-slate-200 hover:bg-red-50">แสดงวาระงาน</button>
       ) : hasFilters ? (
-        <button type="button" onClick={() => { onClearFilters(); onClearSearch(); }} className="mt-3 px-4 py-2 text-sm font-semibold text-red-700 underline underline-offset-4">ล้างคำค้นและตัวกรอง</button>
+        <button type="button" onClick={() => { onClearFilters(); onClearSearch(); }} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-slate-200 hover:bg-red-50">ล้างคำค้นและตัวกรอง</button>
       ) : !isLoggedIn ? (
-        <button type="button" onClick={onRequestLogin} className="mt-3 px-4 py-2 text-sm font-semibold text-red-700 underline underline-offset-4">เข้าสู่ระบบ</button>
+        <button type="button" onClick={onRequestLogin} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-slate-200 hover:bg-red-50">เข้าสู่ระบบ</button>
       ) : null}
     </div>
   );
 
+  const MAX_VISIBLE_PILLS = 3;
+  const selectedHolidays = getHolidaysForDate(selectedDate);
+  const selectedEvents = getEventsForDate(selectedDate);
+  const selectedDayIndex = selectedDate ? new Date(`${selectedDate}T00:00:00`).getDay() : 0;
+  const isSelectedToday = selectedDate === todayStr;
+
+  const renderDateBadge = (dateStr: string, size: "sm" | "lg" = "sm") => {
+    const dateObj = new Date(`${dateStr}T00:00:00`);
+    const isToday = dateStr === todayStr;
+    return (
+      <div
+        className={`flex shrink-0 flex-col items-center justify-center rounded-xl ${size === "lg" ? "h-14 w-14" : "h-12 w-12"} ${
+          isToday ? "bg-red-600 text-white shadow-sm shadow-red-600/30" : "bg-slate-100 text-slate-700"
+        }`}
+      >
+        <span className={`text-[10px] font-medium leading-none ${isToday ? "text-red-100" : "text-slate-500"}`}>{DAYS_SHORT[dateObj.getDay()]}</span>
+        <span className={`${size === "lg" ? "text-xl" : "text-lg"} font-semibold leading-tight`}>{dateObj.getDate()}</span>
+      </div>
+    );
+  };
+
+  const renderHolidayRow = (holiday: UnifiedHoliday) => {
+    const originalEvt = events.find((e) => e.id === holiday.id);
+    return (
+      <div key={holiday.id} className="flex items-start justify-between gap-3 rounded-xl border border-red-100 bg-gradient-to-r from-red-50 to-rose-50/40 p-3.5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-red-600 ring-1 ring-red-100">
+            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600">วันหยุดราชการ</p>
+            <h4 className="text-sm font-semibold leading-snug text-red-950">{holiday.name}</h4>
+            <p className="mt-0.5 text-xs text-red-700/70">บันทึกโดย {holiday.created_by || "ระบบ"}</p>
+          </div>
+        </div>
+        {isLoggedIn && originalEvt && canManageEvent(originalEvt) && (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onEditEvent(originalEvt)}
+              className="rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-900"
+            >
+              แก้ไข
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeleteEvent(originalEvt.id)}
+              className="rounded-lg px-2.5 text-xs font-semibold text-slate-500 hover:bg-white hover:text-red-700"
+            >
+              ลบ
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const toggleChipClass = (active: boolean) =>
+    `inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+      active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+    }`;
+
   return (
-    <div className="calendar-surface min-w-0 space-y-4 sm:space-y-6">
-      
+    <div className="calendar-surface min-w-0 space-y-4">
       {preview && <CalendarEventPreview preview={preview} onDismiss={() => setPreview(null)} />}
 
-      {/* 1. Group & Content Filters Panel */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 sm:p-5">
-        <button id="calendar-filter-toggle" type="button" aria-expanded={isFilterOpen} aria-controls="calendar-filters" onClick={() => setIsFilterOpen(!isFilterOpen)} className="md:hidden flex w-full items-center justify-between gap-2 text-sm font-semibold text-slate-800">
-          <span className="flex items-center gap-2"><Filter className="w-4 h-4" aria-hidden="true" />ตัวกรอง {activeGroupFilters.length > 0 ? `(${activeGroupFilters.length} กลุ่ม)` : "· ทุกกลุ่มงาน"}</span>
-          <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isFilterOpen ? "rotate-180" : ""}`} aria-hidden="true" />
-        </button>
-        <div id="calendar-filters" className={`${isFilterOpen ? "block mt-3" : "hidden"} md:block md:mt-0`}>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Column: Group Filters */}
-          <div className="lg:col-span-3 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Filter className="w-[18px] h-[18px] text-slate-500" />
-                <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wider font-sans">
-                  กรองแสดงตามกลุ่มงาน / กองสังกัด
-                </h3>
-              </div>
-              {activeGroupFilters.length > 0 && (
-                <button
-                  id="clear-group-filters-btn"
-                  onClick={onClearFilters}
-                  className="text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors"
-                >
-                  แสดงกลุ่มงานทั้งหมด ({groups.length})
-                </button>
-              )}
+      {/* Toolbar: month navigation, view mode and filters */}
+      <section aria-label="เครื่องมือปฏิทิน" className="rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm shadow-slate-900/[0.03] sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5">
+              <button
+                id="prev-month-btn"
+                type="button"
+                onClick={handlePrevMonth}
+                aria-label="เดือนก่อนหน้า"
+                title="เดือนก่อนหน้า"
+                className="flex items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                id="today-btn"
+                type="button"
+                onClick={handleGoToToday}
+                className="rounded-lg px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                วันนี้
+              </button>
+              <button
+                id="next-month-btn"
+                type="button"
+                onClick={handleNextMonth}
+                aria-label="เดือนถัดไป"
+                title="เดือนถัดไป"
+                className="flex items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-2xl" aria-live="polite">
+              {THAI_MONTHS[month]} <span className="font-normal text-slate-400">{year + 543}</span>
+            </h2>
+          </div>
 
-            {/* Legend buttons */}
-            <div className="flex flex-wrap gap-2">
+          <div className="flex items-center rounded-xl bg-slate-100 p-1">
+            <button
+              id="view-mode-calendar-btn"
+              type="button"
+              aria-pressed={viewMode === "calendar"}
+              onClick={() => setViewMode("calendar")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-all ${
+                viewMode === "calendar" ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Calendar className="h-4 w-4" aria-hidden="true" />
+              <span>เดือน</span>
+            </button>
+            <button
+              id="view-mode-agenda-btn"
+              type="button"
+              aria-pressed={viewMode === "agenda"}
+              onClick={() => setViewMode("agenda")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-all ${
+                viewMode === "agenda" ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <List className="h-4 w-4" aria-hidden="true" />
+              <span>รายการ</span>
+              <span className="rounded-full bg-slate-200/80 px-1.5 text-[11px] font-semibold text-slate-700">{totalMeetingsCount}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <button
+            id="calendar-filter-toggle"
+            type="button"
+            aria-expanded={isFilterOpen}
+            aria-controls="calendar-filters"
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="flex w-full items-center justify-between gap-2 text-sm font-medium text-slate-700 md:hidden"
+          >
+            <span className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-slate-500" aria-hidden="true" />
+              ตัวกรอง
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                {activeGroupFilters.length > 0 ? `${activeGroupFilters.length} กลุ่ม` : "ทุกกลุ่มงาน"}
+              </span>
+            </span>
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${isFilterOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
+
+          <div id="calendar-filters" className={`${isFilterOpen ? "mt-3 flex" : "hidden"} flex-col gap-3 md:mt-0 md:flex lg:flex-row lg:items-start lg:justify-between`}>
+            <div className="flex min-w-0 flex-wrap gap-1.5" role="group" aria-label="กรองตามกลุ่มงาน">
+              <button
+                id="clear-group-filters-btn"
+                type="button"
+                aria-pressed={activeGroupFilters.length === 0}
+                onClick={onClearFilters}
+                className={toggleChipClass(activeGroupFilters.length === 0)}
+              >
+                ทุกกลุ่มงาน
+              </button>
               {groups.map((group) => {
                 const isActive = activeGroupFilters.includes(group.id);
                 const count = getGroupEventCount(group.id);
@@ -288,477 +414,282 @@ export default function CalendarView({
                     id={`filter-group-${group.id}-btn`}
                     key={group.id}
                     type="button"
-                    aria-pressed={activeGroupFilters.length === 0 || isActive}
+                    aria-pressed={isActive}
                     onClick={() => onToggleGroupFilter(group.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${
-                      activeGroupFilters.length === 0 || isActive
-                        ? "shadow-sm font-semibold scale-[1.01]"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 font-medium"
+                    title={group.label}
+                    className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                      isActive ? "shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
                     }`}
-                    style={activeGroupFilters.length === 0 || isActive ? getGroupBadgeStyle(group) : undefined}
+                    style={isActive ? getGroupBadgeStyle(group) : undefined}
                   >
-                    <span 
-                      className="w-2 h-2 rounded-full shrink-0" 
-                      style={{ backgroundColor: palette.color }}
-                    />
-                    <span className="font-sans">{group.name}</span>
-                    <span className="px-1.5 py-0.25 bg-white/70 rounded-full text-[10px] font-mono font-semibold">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: palette.color }} aria-hidden="true" />
+                    <span className="truncate">{group.name}</span>
+                    <span className={`rounded-full px-1.5 text-[10px] font-semibold tabular-nums ${isActive ? "bg-white/70" : "bg-slate-100 text-slate-500"}`}>
                       {count}
                     </span>
                   </button>
                 );
               })}
             </div>
-          </div>
 
-          {/* Right Column: Content Type Filters (แยกวันหยุดออกจากวาระงาน) */}
-          <div className="lg:col-span-1 border-t lg:border-t-0 lg:border-l border-slate-100 pt-5 lg:pt-0 lg:pl-6 space-y-3">
-            <div className="pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wider font-sans flex items-center gap-1.5">
-                <CalendarDays className="w-4 h-4 text-slate-500" />
-                <span>ตัวเลือกการแสดงผล</span>
-              </h3>
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <button
-                id="toggle-show-agendas"
-                type="button"
-                aria-pressed={showAgendas}
-                onClick={() => setShowAgendas(!showAgendas)}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all duration-150 cursor-pointer ${
-                  showAgendas
-                    ? "bg-slate-900 border-slate-900 text-white font-bold shadow-sm"
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-600 font-medium"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Calendar className={`w-3.5 h-3.5 ${showAgendas ? "text-red-400" : "text-slate-600"}`} />
-                  <span>แสดงวาระงานและกิจกรรม</span>
-                </div>
-                <span className="ml-2 text-xs">{showAgendas ? "แสดง" : "ซ่อน"}</span>
+            <div className="flex shrink-0 flex-wrap gap-1.5 lg:border-l lg:border-slate-100 lg:pl-3" role="group" aria-label="ตัวเลือกการแสดงผล">
+              <button id="toggle-show-agendas" type="button" aria-pressed={showAgendas} onClick={() => setShowAgendas(!showAgendas)} className={toggleChipClass(showAgendas)}>
+                {showAgendas ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Calendar className="h-3.5 w-3.5" aria-hidden="true" />}
+                วาระงาน
               </button>
-
-              <button
-                id="toggle-show-holidays"
-                type="button"
-                aria-pressed={showHolidays}
-                onClick={() => setShowHolidays(!showHolidays)}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all duration-150 cursor-pointer ${
-                  showHolidays
-                    ? "bg-slate-900 border-slate-900 text-white font-bold shadow-sm"
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-600 font-medium"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <CalendarDays className={`w-3.5 h-3.5 ${showHolidays ? "text-red-400" : "text-slate-600"}`} />
-                  <span>แสดงวันหยุดราชการ</span>
-                </div>
-                <span className="ml-2 text-xs">{showHolidays ? "แสดง" : "ซ่อน"}</span>
+              <button id="toggle-show-holidays" type="button" aria-pressed={showHolidays} onClick={() => setShowHolidays(!showHolidays)} className={toggleChipClass(showHolidays)}>
+                {showHolidays ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />}
+                วันหยุดราชการ
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      </div>
+      <div className={viewMode === "calendar" ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_25rem]" : ""}>
+        <section aria-label={viewMode === "calendar" ? "ปฏิทินรายเดือน" : "รายการวาระงาน"} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm shadow-slate-900/[0.03]">
+          {viewMode === "calendar" ? (
+            <>
+              {/* Desktop/Tablet grid */}
+              <div className="hidden sm:block">
+                <div className="grid grid-cols-7 border-b border-slate-100 text-center text-xs font-medium text-slate-500">
+                  {DAYS_FULL.map((day, idx) => (
+                    <div key={day} className={`py-2.5 ${idx === 0 ? "text-red-600" : ""}`}>
+                      <span className="lg:hidden">{DAYS_SHORT[idx]}</span>
+                      <span className="hidden lg:inline">{day}</span>
+                    </div>
+                  ))}
+                </div>
 
-      {/* 2. Monthly Calendar Component Main */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        
-        {/* Calendar Nav Header */}
-        <div className="p-4 sm:px-5 sm:py-4 bg-slate-50/40 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-red-50 text-red-600 rounded-xl">
-              <Calendar className="w-[22px] h-[22px] text-red-600" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 font-sans tracking-tight">
-                {THAI_MONTHS[month]} {year + 543}
-              </h2>
-              <p className="text-sm text-slate-600 font-sans">เลือกวันที่เพื่อดูกิจกรรม</p>
-            </div>
-          </div>
+                <div className="relative z-0 grid grid-cols-7 gap-px bg-slate-100">
+                  {calendarCells.map((cell, idx) => {
+                    const dayEvents = getEventsForDate(cell.dateStr);
+                    const holiday = getHolidayForDate(cell.dateStr);
+                    const isSelected = selectedDate === cell.dateStr;
+                    const isToday = todayStr === cell.dateStr;
+                    const isWeekend = idx % 7 === 0 || idx % 7 === 6;
+                    const visibleEvents = dayEvents.slice(0, MAX_VISIBLE_PILLS);
+                    const hiddenCount = dayEvents.length - visibleEvents.length;
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* View Mode Toggle Switcher */}
-            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/50 shadow-inner">
-              <button
-                id="view-mode-calendar-btn"
-                type="button"
-                aria-pressed={viewMode === "calendar"}
-                onClick={() => setViewMode("calendar")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                  viewMode === "calendar"
-                    ? "bg-white text-slate-800 shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800 border border-transparent"
-                }`}
-              >
-                <Calendar className="w-3.5 h-3.5 text-red-500" />
-                <span>ปฏิทินรายเดือน</span>
-              </button>
-              <button
-                id="view-mode-agenda-btn"
-                type="button"
-                aria-pressed={viewMode === "agenda"}
-                onClick={() => setViewMode("agenda")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                  viewMode === "agenda"
-                    ? "bg-white text-slate-800 shadow-sm border border-slate-200"
-                    : "text-slate-500 hover:text-slate-800 border border-transparent"
-                }`}
-              >
-                <List className="w-3.5 h-3.5 text-red-500" />
-                <span>วาระงาน ({totalMeetingsCount})</span>
-              </button>
-            </div>
+                    return (
+                      <div
+                        id={`cell-${cell.dateStr}`}
+                        key={`${cell.dateStr}-${idx}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
+                        aria-pressed={isSelected}
+                        aria-describedby={preview?.date === cell.dateStr ? "calendar-event-preview" : undefined}
+                        aria-current={isToday ? "date" : undefined}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onSelectDate(cell.dateStr);
+                          }
+                        }}
+                        onClick={() => onSelectDate(cell.dateStr)}
+                        style={{ zIndex: 100 - idx }}
+                        className={`group relative flex min-h-[7.5rem] min-w-0 cursor-pointer flex-col p-1.5 transition-colors hover:!z-[150] lg:p-2 ${
+                          isSelected
+                            ? "bg-red-50/60 ring-2 ring-inset ring-red-500"
+                            : holiday && cell.isCurrentMonth
+                              ? "bg-red-50/30 hover:bg-red-50/60"
+                              : !cell.isCurrentMonth
+                                ? "bg-slate-50/80 hover:bg-slate-100/60"
+                                : isWeekend
+                                  ? "bg-slate-50/40 hover:bg-slate-50"
+                                  : "bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums transition-colors ${
+                              isToday
+                                ? "bg-red-600 font-semibold text-white shadow-sm shadow-red-600/30"
+                                : !cell.isCurrentMonth
+                                  ? "text-slate-400"
+                                  : idx % 7 === 0 || holiday
+                                    ? "text-red-600"
+                                    : "text-slate-800 group-hover:bg-slate-100"
+                            }`}
+                          >
+                            {cell.dayNum}
+                          </span>
+                          {holiday && (
+                            <span
+                              className={`mt-0.5 min-w-0 truncate rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cell.isCurrentMonth ? "bg-red-100/80 text-red-700" : "bg-slate-100 text-slate-400"}`}
+                              title={holiday.name}
+                            >
+                              {holiday.name}
+                            </span>
+                          )}
+                        </div>
 
-            {/* Separator */}
-            <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
+                        <div className={`-mx-1.5 mt-1 flex-1 space-y-1 lg:-mx-2 ${!cell.isCurrentMonth ? "opacity-50" : ""}`}>
+                          {visibleEvents.map((evt) => {
+                            const group = groups.find((g) => g.id === evt.group_id);
+                            const isMultiDay = evt.end_date && evt.end_date !== evt.date;
+                            let widthClasses = "mx-1.5 lg:mx-2 rounded-md";
+                            let showContent = true;
 
-            {/* Month Nav Buttons */}
-            <div className="flex items-center gap-1.5">
-              <button
-                id="prev-month-btn"
-                onClick={handlePrevMonth}
-                className="p-1.5 border border-slate-200 hover:border-slate-300 rounded-xl bg-white hover:bg-slate-50 text-slate-500 transition-colors cursor-pointer"
-                title="เดือนก่อนหน้า"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+                            if (isMultiDay) {
+                              const isStart = cell.dateStr === evt.date;
+                              const isEnd = cell.dateStr === evt.end_date;
+                              const isMiddle = cell.dateStr > evt.date && cell.dateStr < (evt.end_date || "");
 
-              <button
-                id="today-btn"
-                onClick={handleGoToToday}
-                className="text-[11px] font-semibold px-3 py-1.5 border border-slate-200 hover:border-slate-300 rounded-xl bg-white hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
-              >
-                วันนี้
-              </button>
+                              if (isStart) {
+                                widthClasses = "ml-1.5 lg:ml-2 mr-0 rounded-l-md rounded-r-none border-r-0";
+                              } else if (isEnd) {
+                                widthClasses = "mr-1.5 lg:mr-2 ml-0 rounded-r-md rounded-l-none border-l-0";
+                              } else if (isMiddle) {
+                                widthClasses = "mx-0 rounded-none border-x-0";
+                              }
 
-              <button
-                id="next-month-btn"
-                onClick={handleNextMonth}
-                className="p-1.5 border border-slate-200 hover:border-slate-300 rounded-xl bg-white hover:bg-slate-50 text-slate-500 transition-colors cursor-pointer"
-                title="เดือนถัดไป"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+                              const isStartOfWeek = idx % 7 === 0;
+                              const isFirstCell = idx === 0;
+                              showContent = isStart || isStartOfWeek || isFirstCell;
+                            }
 
-        </div>
-
-        {viewMode === "calendar" ? (
-          <>
-            {/* Calendar Desktop/Tablet Grid */}
-            <div className="hidden sm:block">
-              {/* Days of week header row */}
-              <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50 text-center py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                {DAYS_FULL.map((day, idx) => (
-                  <div 
-                    key={day} 
-                    className={`font-sans py-1 ${idx === 0 ? "text-red-600" : idx === 6 ? "text-slate-700" : ""}`}
-                  >
-                    {day}
-                  </div>
-                ))}
+                            return (
+                              <div
+                                key={evt.id}
+                                data-calendar-event-id={evt.id}
+                                onMouseEnter={(mouse) => setPreview({ event: evt, group, anchor: mouse.currentTarget, date: cell.dateStr })}
+                                onMouseLeave={() => setPreview(null)}
+                                className={`relative flex min-w-0 gap-1 border px-1.5 py-0.5 text-[11px] leading-snug transition-all hover:z-50 hover:shadow-sm lg:text-xs ${
+                                  isMultiDay ? "z-10 items-center" : "items-start"
+                                } ${widthClasses} ${group ? "" : "border-slate-200 bg-slate-50 text-slate-700"}`}
+                                style={group ? getGroupBadgeStyle(group) : undefined}
+                              >
+                                {showContent ? (
+                                  isMultiDay ? (
+                                    <>
+                                      {evt.start_time && <span className="shrink-0 font-semibold tabular-nums">{evt.start_time}</span>}
+                                      <span className="min-w-0 flex-1 truncate text-left">{evt.title}</span>
+                                      {evt.is_online && <Video className="h-3 w-3 shrink-0 opacity-70" aria-hidden="true" />}
+                                    </>
+                                  ) : (
+                                    <span className="line-clamp-2 min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
+                                      {evt.start_time && <span className="mr-1 font-semibold tabular-nums">{evt.start_time}</span>}
+                                      {evt.title}
+                                      {evt.is_online && <Video className="ml-1 inline-block h-3 w-3 align-[-2px] opacity-70" aria-hidden="true" />}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="pointer-events-none min-w-0 flex-1 select-none truncate opacity-0">{evt.title}</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {hiddenCount > 0 && (
+                            <p className="mx-1.5 px-1 text-[11px] font-medium text-slate-500 lg:mx-2">+{hiddenCount} รายการ</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Calendar month grid cells */}
-              <div className="grid grid-cols-7 divide-x divide-y divide-slate-100/50 bg-slate-100 border-t border-slate-100 relative z-0">
-                {calendarCells.map((cell, idx) => {
-                  const dayEvents = getEventsForDate(cell.dateStr);
-                  const holiday = getHolidayForDate(cell.dateStr);
-                  const isSelected = selectedDate === cell.dateStr;
-                  const isToday = todayStr === cell.dateStr;
+              {/* Mobile compact grid */}
+              <div className="block sm:hidden">
+                <div className="grid grid-cols-7 border-b border-slate-100 py-2 text-center text-[11px] font-medium text-slate-500">
+                  {DAYS_SHORT.map((day, idx) => (
+                    <div key={day} className={idx === 0 ? "text-red-600" : ""}>{day}</div>
+                  ))}
+                </div>
 
-                  return (
-                    <div
-                      id={`cell-${cell.dateStr}`}
-                      key={`${cell.dateStr}-${idx}`}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
-                      aria-pressed={isSelected}
-                      aria-describedby={preview?.date === cell.dateStr ? "calendar-event-preview" : undefined}
-                      aria-current={isToday ? "date" : undefined}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          onSelectDate(cell.dateStr);
-                        }
-                      }}
-                      onClick={() => onSelectDate(cell.dateStr)}
-                      style={{ zIndex: 100 - idx }}
-                      className={`min-w-0 min-h-[110px] p-2 bg-white transition-all cursor-pointer relative hover:bg-slate-50/50 hover:!z-[150] flex flex-col justify-between group ${
-                        !cell.isCurrentMonth ? "opacity-30" : ""
-                      } ${
-                        isSelected ? "ring-2 ring-red-500/10 bg-red-50/5 z-10" : ""
-                      } ${
-                        isToday ? "bg-red-50/5" : ""
-                      }`}
-                    >
-                      {/* Top cell header */}
-                      <div className="flex items-start justify-between">
-                        <span 
-                          className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${
-                            isToday 
-                              ? "bg-red-600 text-white font-semibold" 
-                              : cell.isCurrentMonth
-                                ? idx % 7 === 0 // Sunday
-                                  ? "text-red-600"
-                                  : "text-slate-700"
-                                : "text-slate-600"
+                <div className="grid grid-cols-7 gap-0.5 p-1.5">
+                  {calendarCells.map((cell, idx) => {
+                    const dayEvents = getEventsForDate(cell.dateStr);
+                    const holiday = getHolidayForDate(cell.dateStr);
+                    const isSelected = selectedDate === cell.dateStr;
+                    const isToday = todayStr === cell.dateStr;
+
+                    return (
+                      <button
+                        id={`cell-mobile-${cell.dateStr}`}
+                        key={`mob-${cell.dateStr}-${idx}`}
+                        type="button"
+                        aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
+                        aria-pressed={isSelected}
+                        aria-current={isToday ? "date" : undefined}
+                        onClick={() => onSelectDate(cell.dateStr)}
+                        className={`relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+                          isSelected ? "bg-red-50 ring-2 ring-inset ring-red-500" : "hover:bg-slate-50"
+                        } ${!cell.isCurrentMonth ? "opacity-40" : ""}`}
+                      >
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-sm tabular-nums ${
+                            isToday
+                              ? "bg-red-600 font-semibold text-white"
+                              : idx % 7 === 0 || holiday
+                                ? "font-medium text-red-600"
+                                : "font-medium text-slate-800"
                           }`}
                         >
                           {cell.dayNum}
                         </span>
-
-                        {/* Holiday Indicator */}
-                        {holiday && (
-                          <span 
-                            className="text-[9px] font-bold text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5 max-w-[85px] truncate block hover:overflow-visible hover:whitespace-normal" 
-                            title={holiday.name}
-                          >
-                            {holiday.name}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Middle event list (pills) */}
-                      <div className="flex-1 mt-2 -mx-2 space-y-1">
-                        {dayEvents.map((evt) => {
-                          const group = groups.find(g => g.id === evt.group_id);
-                          const isMultiDay = evt.end_date && evt.end_date !== evt.date;
-                          let widthClasses = "mx-2 rounded-md"; // default for single day
-                          
-                          let showContent = true;
-
-                          if (isMultiDay) {
-                            const isStart = cell.dateStr === evt.date;
-                            const isEnd = cell.dateStr === evt.end_date;
-                            const isMiddle = cell.dateStr > evt.date && cell.dateStr < (evt.end_date || "");
-
-                            if (isStart) {
-                              widthClasses = "ml-2 mr-0 rounded-l-md rounded-r-none border-r-0";
-                            } else if (isEnd) {
-                              widthClasses = "mr-2 ml-0 rounded-r-md rounded-l-none border-l-0";
-                            } else if (isMiddle) {
-                              widthClasses = "mx-0 rounded-none border-x-0";
-                            }
-
-                            const isStartOfWeek = idx % 7 === 0;
-                            const isFirstCell = idx === 0;
-                            showContent = isStart || isStartOfWeek || isFirstCell;
-                          }
-
-                          return (
-                            <div
-                              key={evt.id}
-                              data-calendar-event-id={evt.id}
-                              onMouseEnter={(mouse) => setPreview({ event: evt, group, anchor: mouse.currentTarget, date: cell.dateStr })}
-                              onMouseLeave={() => setPreview(null)}
-                              className={`group/pill min-w-0 text-xs leading-snug px-1.5 py-0.5 border flex ${
-                                isMultiDay ? "items-center" : "items-start"
-                              } gap-1 transition-all relative hover:z-50 ${
-                                !isMultiDay ? "hover:translate-x-0.5" : "z-10"
-                              } ${widthClasses} ${group ? "" : "bg-slate-50 border-slate-200 text-slate-700"}`}
-                              style={group ? getGroupBadgeStyle(group) : undefined}
-                            >
-                              {showContent ? (
-                                isMultiDay ? (
-                                  <>
-                                    {evt.start_time && (
-                                      <span className="font-semibold shrink-0 font-sans">{evt.start_time}</span>
-                                    )}
-                                    <span className="hidden xl:inline-block font-semibold px-0.5 bg-white/65 rounded text-[10px] uppercase shrink-0">
-                                      {group?.label || "อื่น ๆ"}
-                                    </span>
-                                    <span className="truncate min-w-0 z-20 pointer-events-none flex-1 text-left font-sans">{evt.title}</span>
-                                    {evt.is_online && (
-                                      <Video className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                                    )}
-                                  </>
-                                ) : (
-                                  <div className="flex-1 min-w-0 text-left font-sans line-clamp-2 [overflow-wrap:anywhere]">
-                                    {evt.start_time && (
-                                      <span className="font-semibold mr-1 font-sans">{evt.start_time}</span>
-                                    )}
-                                    <span className="hidden xl:inline-block font-semibold px-0.5 bg-white/65 rounded text-[10px] uppercase mr-1 inline-block align-[0.5px]">
-                                      {group?.label || "อื่น ๆ"}
-                                    </span>
-                                    <span>{evt.title}</span>
-                                    {evt.is_online && (
-                                      <Video className="w-2.5 h-2.5 inline-block ml-1 align-[-1.5px] opacity-80" />
-                                    )}
-                                  </div>
-                                )
-                              ) : (
-                                <span className={`opacity-0 select-none flex-1 font-sans ${isMultiDay ? "truncate" : "line-clamp-2 break-words"} min-w-0 pointer-events-none`}>{evt.title}</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Highlight bar on selected */}
-                      {isSelected && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600" />
-                      )}
-                    </div>
-                  );
-                })}
+                        <span className="flex h-1.5 items-center justify-center gap-0.5" aria-hidden="true">
+                          {holiday && <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+                          {dayEvents.slice(0, 3).map((evt) => {
+                            const group = groups.find((g) => g.id === evt.group_id);
+                            return <span key={evt.id} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getGroupPalette(group?.color).color }} />;
+                          })}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-
-            {/* Calendar Mobile View (Alternative layout for smaller screens) */}
-            <div className="block sm:hidden">
-              {/* Simple compact grid with dots for events */}
-              <div className="grid grid-cols-7 text-center border-b border-slate-100 bg-slate-50 py-2.5 text-[11px] font-bold text-slate-500">
-                {DAYS_SHORT.map((day, idx) => (
-                  <div key={day} className={idx === 0 ? "text-red-500" : ""}>{day}</div>
-                ))}
+            </>
+          ) : (
+            <div className="p-3 sm:p-5">
+              <div className="mb-4 flex items-center gap-1 rounded-xl bg-slate-100 p-1 sm:w-fit">
+                <button
+                  type="button"
+                  onClick={() => setAgendaSubTab("meetings")}
+                  aria-pressed={agendaSubTab === "meetings"}
+                  className={`flex-1 rounded-lg px-4 text-sm font-medium transition-all sm:flex-none ${
+                    agendaSubTab === "meetings" ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  วาระงาน ({totalMeetingsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAgendaSubTab("holidays")}
+                  aria-pressed={agendaSubTab === "holidays"}
+                  className={`flex-1 rounded-lg px-4 text-sm font-medium transition-all sm:flex-none ${
+                    agendaSubTab === "holidays" ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  วันหยุด ({totalHolidaysCount})
+                </button>
               </div>
 
-              <div className="grid grid-cols-7 divide-x divide-y divide-slate-50 bg-slate-100">
-                {calendarCells.map((cell, idx) => {
-                  const dayEvents = getEventsForDate(cell.dateStr);
-                  const holiday = getHolidayForDate(cell.dateStr);
-                  const isSelected = selectedDate === cell.dateStr;
-                  const isToday = todayStr === cell.dateStr;
-
-                  return (
-                    <button
-                      id={`cell-mobile-${cell.dateStr}`}
-                      key={`mob-${cell.dateStr}-${idx}`}
-                      type="button"
-                      aria-label={`${formatSelectedDateThaiWithDay(cell.dateStr)}${holiday ? ` · ${holiday.name}` : ""} · ${dayEvents.length} กิจกรรม`}
-                      aria-pressed={isSelected}
-                      aria-current={isToday ? "date" : undefined}
-                      onClick={() => onSelectDate(cell.dateStr)}
-                      className={`aspect-square p-1 bg-white flex flex-col items-center justify-between transition-colors relative cursor-pointer ${
-                        !cell.isCurrentMonth ? "opacity-30" : ""
-                      } ${
-                        isSelected ? "bg-red-50 font-bold" : ""
-                      }`}
-                    >
-                      <span 
-                        className={`text-xs font-semibold w-5 h-5 rounded-full flex items-center justify-center ${
-                          isToday 
-                            ? "bg-red-600 text-white font-bold" 
-                            : idx % 7 === 0 
-                              ? "text-red-500 font-bold" 
-                              : "text-slate-700"
-                        }`}
-                      >
-                        {cell.dayNum}
-                      </span>
-
-                      {/* Dots indicator */}
-                      <div className="flex gap-0.5 justify-center items-center h-2 overflow-hidden mt-0.5">
-                        {holiday && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                        )}
-                        {dayEvents.slice(0, 3).map((evt) => {
-                          const group = groups.find(g => g.id === evt.group_id);
-                          return (
-                            <span 
-                              key={evt.id} 
-                              className="w-1 h-1 rounded-full shrink-0" 
-                              style={{ backgroundColor: getGroupPalette(group?.color).color }}
-                            />
-                          );
-                        })}
-                      </div>
-
-                      {isSelected && (
-                        <div className="absolute inset-x-0 bottom-0 h-0.5 bg-red-600" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="p-2 sm:p-6 bg-slate-50/20">
-            {/* Agenda Sub-Tabs Switcher */}
-            <div className="flex border-b border-slate-200 mb-5 pb-0.5 gap-6">
-              <button
-                type="button"
-                onClick={() => setAgendaSubTab("meetings")}
-                aria-pressed={agendaSubTab === "meetings"}
-                className={`pb-2.5 text-xs font-bold transition-all relative cursor-pointer ${
-                  agendaSubTab === "meetings"
-                    ? "text-red-600 font-bold"
-                    : "text-slate-600 hover:text-slate-600 font-medium"
-                }`}
-              >
-                <span>วาระงาน({totalMeetingsCount})</span>
-                {agendaSubTab === "meetings" && (
-                  <div className="absolute bottom-0 inset-x-0 h-0.5 bg-red-600 rounded-full" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAgendaSubTab("holidays")}
-                aria-pressed={agendaSubTab === "holidays"}
-                className={`pb-2.5 text-xs font-bold transition-all relative cursor-pointer ${
-                  agendaSubTab === "holidays"
-                    ? "text-red-600 font-bold"
-                    : "text-slate-600 hover:text-slate-600 font-medium"
-                }`}
-              >
-                <span>วันหยุด({totalHolidaysCount})</span>
-                {agendaSubTab === "holidays" && (
-                  <div className="absolute bottom-0 inset-x-0 h-0.5 bg-red-600 rounded-full" />
-                )}
-              </button>
-            </div>
-
-            {agendaSubTab === "meetings" ? (
-              meetingAgendaItems.length === 0 ? (
-                emptyMeetings("month")
-              ) : (
-                <div className="space-y-6">
-                  {meetingAgendaItems.map((item) => {
-                    const isToday = todayStr === item.dateStr;
-                    return (
-                      <div 
-                        key={item.dateStr}
-                        className={`bg-white rounded-2xl border-0 sm:border transition-all duration-200 p-0 sm:p-5 shadow-none sm:shadow-sm/5 ${
-                          isToday 
-                            ? "border-red-200 ring-2 ring-red-100/30 bg-red-50/5" 
-                            : "border-slate-100 hover:border-slate-200"
-                        }`}
-                      >
-                        {/* Day Header */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => onSelectDate(item.dateStr)}
-                            className="flex items-center gap-2.5 text-left group cursor-pointer"
-                          >
-                            <span className={`w-2.5 h-2.5 rounded-full ${isToday ? "bg-red-600" : "bg-slate-300 group-hover:bg-red-500"} transition-colors`} />
-                            <h4 className="text-sm font-bold text-slate-800 font-sans group-hover:text-red-600 transition-colors">
-                              {formatSelectedDateThaiWithDay(item.dateStr)}
-                            </h4>
-                            {isToday && (
-                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-sans">
-                                วันนี้
-                              </span>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Day's Events List */}
-                        <div className="space-y-3.5">
+              {agendaSubTab === "meetings" ? (
+                meetingAgendaItems.length === 0 ? (
+                  emptyMeetings("month")
+                ) : (
+                  <ol className="space-y-5">
+                    {meetingAgendaItems.map((item) => (
+                      <li key={item.dateStr} className="grid gap-3 sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-4">
+                        <button
+                          type="button"
+                          onClick={() => { onSelectDate(item.dateStr); setViewMode("calendar"); }}
+                          title="ดูในปฏิทิน"
+                          className="flex items-center gap-3 self-start text-left sm:flex-col sm:gap-1"
+                        >
+                          {renderDateBadge(item.dateStr, "lg")}
+                          <span className="text-sm font-medium text-slate-700 sm:hidden">{formatSelectedDateThaiWithDay(item.dateStr)}</span>
+                        </button>
+                        <div className="@container min-w-0 space-y-3">
                           {item.dayEvents.map((evt) => (
                             <Fragment key={evt.id}>
                               <CalendarEventCard
                                 event={evt}
-                                group={groups.find(group => group.id === evt.group_id)}
+                                group={groups.find((group) => group.id === evt.group_id)}
                                 view="agenda"
                                 occurrenceDate={item.dateStr}
                                 dateRangeLabel={evt.end_date && evt.end_date !== evt.date
@@ -774,193 +705,92 @@ export default function CalendarView({
                             </Fragment>
                           ))}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            ) : (
-              holidayAgendaItems.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm/5 animate-fade-in">
-                  <Calendar className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                  <h3 className="text-base font-bold text-slate-800 font-sans">ไม่มีวันหยุดราชการหรือสำนักงานในเดือนนี้</h3>
-                  <p className="text-xs text-slate-600 font-sans mt-1.5 max-w-md mx-auto leading-relaxed">
-                    ไม่พบข้อมูลวันหยุดนักขัตฤกษ์ในเดือน {THAI_MONTHS[month]} พ.ศ. {year + 543} ท่านสามารถเปิดใช้งานตัวเลือก "แสดงวันหยุดราชการ" หรือตั้งค่าเพิ่มวันหยุดในปฏิทินได้
+                      </li>
+                    ))}
+                  </ol>
+                )
+              ) : holidayAgendaItems.length === 0 ? (
+                <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-10 text-center">
+                  <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-red-400 shadow-sm ring-1 ring-slate-200/70">
+                    <CalendarDays className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                  <h3 className="text-sm font-semibold text-slate-800">ไม่มีวันหยุดราชการในเดือนนี้</h3>
+                  <p className="mt-1 max-w-sm text-sm leading-relaxed text-slate-500">
+                    ไม่พบวันหยุดในเดือน{THAI_MONTHS[month]} พ.ศ. {year + 543}
+                    {!showHolidays && " · ตัวเลือก “วันหยุดราชการ” ถูกปิดอยู่"}
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {holidayAgendaItems.map((item) => {
-                    const isToday = todayStr === item.dateStr;
-                    return (
-                      <div 
-                        key={item.dateStr}
-                        className={`bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 shadow-sm/5 ${
-                          isToday 
-                            ? "border-red-200 ring-2 ring-red-100/30 bg-red-50/5" 
-                            : "border-slate-100 hover:border-slate-200"
-                        }`}
+                <ol className="space-y-4">
+                  {holidayAgendaItems.map((item) => (
+                    <li key={item.dateStr} className="grid gap-3 sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-4">
+                      <button
+                        type="button"
+                        onClick={() => { onSelectDate(item.dateStr); setViewMode("calendar"); }}
+                        title="ดูในปฏิทิน"
+                        className="flex items-center gap-3 self-start text-left sm:flex-col sm:gap-1"
                       >
-                        {/* Day Header */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => onSelectDate(item.dateStr)}
-                            className="flex items-center gap-2.5 text-left group cursor-pointer"
-                          >
-                            <span className={`w-2.5 h-2.5 rounded-full ${isToday ? "bg-red-600" : "bg-slate-300 group-hover:bg-red-500"} transition-colors`} />
-                            <h4 className="text-sm font-bold text-slate-800 font-sans group-hover:text-red-600 transition-colors">
-                              {formatSelectedDateThaiWithDay(item.dateStr)}
-                            </h4>
-                            {isToday && (
-                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-sans">
-                                วันนี้
-                              </span>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Day's Holidays List */}
-                        <div className="space-y-3">
-                          {item.dayHolidays.map((h, idx) => (
-                            <div 
-                              key={idx}
-                              className="bg-red-50/40 border border-red-100/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-red-50/60"
-                            >
-                              <div className="flex items-start gap-3">
-                                <CalendarDays className="w-[22px] h-[22px] text-red-600 shrink-0 mt-0.5" />
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <h5 className="text-sm font-bold text-red-800 font-sans leading-snug">
-                                      {h.name}
-                                    </h5>
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 border border-orange-200">
-                                      วันหยุด
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-red-600/70 font-sans mt-0.5">
-                                    กำหนดโดยผู้ลงบันทึก: {h.created_by || "ระบบ"}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Holiday controls */}
-                              {isLoggedIn && h.id && canManageHoliday(h) && (
-                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const originalEvt = events.find(e => e.id === h.id);
-                                      if (originalEvt) onEditEvent(originalEvt);
-                                    }}
-                                    className="text-[10px] font-bold text-slate-600 hover:text-indigo-600 bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                                  >
-                                    แก้ไข
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => h.id && onDeleteEvent(h.id)}
-                                    className="text-[10px] font-bold text-slate-500 hover:text-red-600 bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                                  >
-                                    ลบ
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            )}
-          </div>
-        )}
-
-      </div>
-
-      {/* 3. Detail Section for Selected Date */}
-      {viewMode === "calendar" && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-          <div>
-            <span className="text-xs font-bold text-red-600 uppercase tracking-wide font-sans bg-red-50 border border-red-200 rounded-lg px-2.5 py-1 inline-block mb-1.5">
-              รายการกิจกรรมและวันหยุด
-            </span>
-            <h3 className="text-base font-bold text-slate-800 font-sans flex items-center gap-2">
-              ประจำวันที่ {formatSelectedDateThai(selectedDate)}
-            </h3>
-          </div>
-        </div>
-
-        {/* Holiday Details (if any on selected day) */}
-        {getHolidaysForDate(selectedDate).map((holiday) => {
-          const originalEvt = events.find(e => e.id === holiday.id);
-          return (
-            <div key={holiday.id} className="mb-4 bg-red-50/70 border border-red-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <CalendarDays className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-bold text-red-800 font-sans">
-                    วันหยุด: {holiday.name}
-                  </h4>
-                  <p className="text-xs text-red-600 font-sans mt-0.5">
-                    กำหนดโดยผู้ลงบันทึก: {holiday.created_by || "ระบบ"}
-                  </p>
-                </div>
-              </div>
-              {isLoggedIn && originalEvt && canManageEvent(originalEvt) && (
-                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => onEditEvent(originalEvt)}
-                    className="text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-white px-2.5 py-1.5 rounded-lg border border-red-200 bg-white/70 transition-colors"
-                  >
-                    แก้ไข
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteEvent(originalEvt.id)}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-red-600 hover:bg-white px-2.5 py-1.5 rounded-lg border border-red-200 bg-white/70 transition-colors"
-                  >
-                    ลบ
-                  </button>
-                </div>
+                        {renderDateBadge(item.dateStr, "lg")}
+                        <span className="text-sm font-medium text-slate-700 sm:hidden">{formatSelectedDateThaiWithDay(item.dateStr)}</span>
+                      </button>
+                      <div className="min-w-0 space-y-2">{item.dayHolidays.map(renderHolidayRow)}</div>
+                    </li>
+                  ))}
+                </ol>
               )}
             </div>
-          );
-        })}
+          )}
+        </section>
 
-        {/* Selected date events list */}
-        {getEventsForDate(selectedDate).length === 0 ? (
-          emptyMeetings("day")
-        ) : (
-          <div className="space-y-3.5">
-            {getEventsForDate(selectedDate).map((evt) => (
-              <Fragment key={evt.id}>
-                <CalendarEventCard
-                  event={evt}
-                  group={groups.find(group => group.id === evt.group_id)}
-                  view="day"
-                  occurrenceDate={selectedDate}
-                  dateRangeLabel={evt.end_date && evt.end_date !== evt.date
-                    ? `${formatSelectedDateThai(evt.date)} - ${formatSelectedDateThai(evt.end_date)}`
-                    : undefined}
-                  isLoggedIn={isLoggedIn}
-                  canManage={canManageEvent(evt)}
-                  onEdit={onEditEvent}
-                  onDuplicate={onDuplicateEvent}
-                  onDelete={onDeleteEvent}
-                  onOpenParticipantPdf={onOpenParticipantPdf}
-                />
-              </Fragment>
-            ))}
-          </div>
+        {viewMode === "calendar" && (
+          <aside
+            aria-labelledby="selected-day-heading"
+            className="min-w-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm shadow-slate-900/[0.03] lg:sticky lg:top-20"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+              {selectedDate && renderDateBadge(selectedDate, "lg")}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-500">
+                  {isSelectedToday ? "วันนี้ · " : ""}วัน{DAYS_FULL[selectedDayIndex]}
+                </p>
+                <h3 id="selected-day-heading" className="text-base font-semibold leading-snug text-slate-900">
+                  {formatSelectedDateThai(selectedDate)}
+                </h3>
+              </div>
+              <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 tabular-nums">
+                {selectedEvents.length} กิจกรรม
+              </span>
+            </div>
+
+            <div className="@container space-y-3 p-3 sm:p-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto">
+              {selectedHolidays.map(renderHolidayRow)}
+              {selectedEvents.length === 0 ? (
+                emptyMeetings("day")
+              ) : (
+                selectedEvents.map((evt) => (
+                  <Fragment key={evt.id}>
+                    <CalendarEventCard
+                      event={evt}
+                      group={groups.find((group) => group.id === evt.group_id)}
+                      view="day"
+                      occurrenceDate={selectedDate}
+                      dateRangeLabel={evt.end_date && evt.end_date !== evt.date
+                        ? `${formatSelectedDateThai(evt.date)} - ${formatSelectedDateThai(evt.end_date)}`
+                        : undefined}
+                      isLoggedIn={isLoggedIn}
+                      canManage={canManageEvent(evt)}
+                      onEdit={onEditEvent}
+                      onDuplicate={onDuplicateEvent}
+                      onDelete={onDeleteEvent}
+                      onOpenParticipantPdf={onOpenParticipantPdf}
+                    />
+                  </Fragment>
+                ))
+              )}
+            </div>
+          </aside>
         )}
       </div>
-    )}
-
     </div>
   );
 }

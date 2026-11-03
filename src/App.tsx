@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, BarChart3, Calendar, Database, RefreshCw } from "lucide-react";
+import { AlertCircle, Database, RefreshCw, X } from "lucide-react";
 import { EventData, Group, SupabaseConfig, UserSession } from "./types";
 import { MOCK_EVENTS, GROUPS as INITIAL_GROUPS, THAI_HOLIDAYS_2026 } from "./data/constants";
 import {
@@ -699,7 +699,7 @@ export default function App() {
   const confirmDeleteLabel = confirmDeleteEvent?.is_holiday ? "วันหยุด" : "กิจกรรมการประชุม";
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans antialiased text-slate-800 pb-12">
+    <div className="min-h-screen bg-slate-50 pb-16 font-sans text-slate-800 antialiased">
       <a href="#main-content" className="skip-link">ข้ามไปยังปฏิทินและเนื้อหา</a>
       <Header
         searchTerm={searchTerm}
@@ -740,68 +740,64 @@ export default function App() {
         canManageGroups={canManageGroups}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
-      <main id="main-content" tabIndex={-1} className="min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto mt-4 min-w-0 max-w-7xl space-y-4 px-4 focus:outline-none sm:mt-6 sm:px-6 lg:px-8">
         {isDbLoading && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-3 shadow-sm animate-pulse">
-            <div className="flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 text-emerald-600 animate-spin" />
-              <div>
-                <p className="text-sm font-bold text-emerald-800 font-sans">กำลังทำรายการกับฐานข้อมูล...</p>
-                <p className="text-xs text-emerald-600 font-sans">
-                  {isSupabaseMode ? "เชื่อมต่อข้อมูลกับ Supabase" : "กำลังอ่านข้อมูลภายในเครื่อง"}
-                </p>
-              </div>
-            </div>
+          <div role="status" className="fixed left-1/2 top-20 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/5 backdrop-blur">
+            <RefreshCw className="h-4 w-4 animate-spin text-red-600" aria-hidden="true" />
+            {isSupabaseMode ? "กำลังซิงค์ข้อมูลกับ Supabase..." : "กำลังโหลดข้อมูล..."}
           </div>
         )}
 
         {dbError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-red-800 font-sans">ข้อขัดข้องการเชื่อมโยง Supabase</p>
-              <p className="text-xs text-red-600/90 font-sans mt-0.5">{dbError}</p>
-              <p className="text-xs text-red-600/80 font-sans mt-1">ไม่มีการ fallback ไปเขียน local อัตโนมัติ เพื่อป้องกันข้อมูลแยกคนละแหล่งโดยไม่ตั้งใจ</p>
-              <button
-                id="retry-connection-banner-btn"
-                onClick={() => loadData(supabaseConfig)}
-                className="text-xs underline text-red-700 hover:text-red-900 font-bold mt-2 block"
-              >
-                ลองเชื่อมต่อใหม่อีกครั้ง
-              </button>
+          <div role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-red-900">เชื่อมต่อ Supabase ไม่สำเร็จ</p>
+              <p className="mt-0.5 text-sm text-red-700">{dbError}</p>
+              <p className="mt-1 text-xs text-red-600/80">ระบบจะไม่บันทึกลงเครื่องอัตโนมัติ เพื่อป้องกันข้อมูลแยกคนละแหล่ง</p>
             </div>
+            <button
+              id="retry-connection-banner-btn"
+              type="button"
+              onClick={() => loadData(supabaseConfig)}
+              className="shrink-0 rounded-xl bg-red-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            >
+              ลองใหม่
+            </button>
           </div>
         )}
 
         {holidaySeedError && !dbError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-3 shadow-sm">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-amber-900 font-sans">นำเข้าวันหยุดราชการไม่สำเร็จ</p>
-                <p className="text-xs text-amber-800/90 font-sans mt-0.5">{holidaySeedError}</p>
-                <p className="text-xs text-amber-700 font-sans mt-1">
-                  ปฏิทินยังอ่านข้อมูลจาก Supabase ได้ตามปกติ แต่ต้องรัน SQL Schema/RLS ล่าสุดใน Supabase SQL Editor ก่อนจึงจะนำเข้าวันหยุดราชการได้
+          <div className="flex flex-col justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-start">
+            <div className="flex min-w-0 items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-900">นำเข้าวันหยุดราชการไม่สำเร็จ</p>
+                <p className="mt-0.5 text-sm text-amber-800">{holidaySeedError}</p>
+                <p className="mt-1 text-xs text-amber-700">
+                  ปฏิทินยังอ่านข้อมูลได้ตามปกติ แต่ต้องรัน SQL Schema/RLS ล่าสุดใน Supabase SQL Editor ก่อน
                 </p>
-                <code className="mt-2 inline-block text-[11px] bg-white/70 border border-amber-200 rounded-md px-2 py-1 text-amber-900">
+                <code className="mt-2 block overflow-x-auto rounded-lg border border-amber-200 bg-white/70 px-2 py-1 text-[11px] text-amber-900">
                   CREATE POLICY "Authenticated users create events" ON public.events FOR INSERT TO authenticated WITH CHECK (true);
                 </code>
               </div>
             </div>
-            <div className="flex sm:flex-col gap-2 shrink-0">
+            <div className="flex shrink-0 gap-2 sm:flex-col">
               <button
                 type="button"
                 onClick={handleRetryHolidaySeed}
-                className="text-xs font-semibold px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition-colors font-sans whitespace-nowrap"
+                className="whitespace-nowrap rounded-xl bg-amber-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-amber-700"
               >
                 ลองนำเข้าอีกครั้ง
               </button>
               <button
                 type="button"
                 onClick={() => setIsSupabaseModalOpen(true)}
-                className="text-xs font-semibold px-3.5 py-1.5 bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg transition-colors font-sans whitespace-nowrap"
+                className="whitespace-nowrap rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
               >
                 เปิด SQL Schema
               </button>
@@ -810,18 +806,21 @@ export default function App() {
         )}
 
         {!isSupabaseMode && (
-          <div className="bg-amber-50/70 border border-amber-200/60 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-amber-800 font-sans">โหมดข้อมูลในเครื่อง (Local Demo)</p>
-                <p className="text-xs text-amber-600 font-sans mt-0.5">กิจกรรมและไฟล์แนบในโหมดทดลองเก็บเฉพาะเบราว์เซอร์นี้ เชื่อมต่อ Supabase เพื่อใช้งานร่วมกัน</p>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/60 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <Database className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-900">โหมดทดลอง (Local Demo)</p>
+                <p className="hidden text-xs text-amber-800/80 sm:block">ข้อมูลเก็บเฉพาะเบราว์เซอร์นี้ เชื่อมต่อ Supabase เพื่อใช้งานร่วมกันทั้งหน่วยงาน</p>
               </div>
             </div>
             <button
               id="connect-supabase-banner-btn"
+              type="button"
               onClick={() => setIsSupabaseModalOpen(true)}
-              className="text-xs font-semibold px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow transition-colors font-sans whitespace-nowrap"
+              className="shrink-0 whitespace-nowrap rounded-xl bg-amber-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
             >
               ตั้งค่า Supabase
             </button>
@@ -829,15 +828,15 @@ export default function App() {
         )}
 
         {isSupabaseMode && !user && (
-          <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 sm:p-4 mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-sky-900 font-sans">ดูปฏิทินได้โดยไม่ต้องเข้าสู่ระบบ</p>
-              <p className="hidden sm:block text-sm text-sky-800 font-sans mt-0.5">เข้าสู่ระบบด้วยบัญชีหน่วยงานเพื่อเพิ่มหรือแก้ไขกิจกรรม</p>
+              <p className="text-sm font-semibold text-sky-900">ดูปฏิทินได้โดยไม่ต้องเข้าสู่ระบบ</p>
+              <p className="mt-0.5 hidden text-xs text-sky-800 sm:block">เข้าสู่ระบบด้วยบัญชีหน่วยงานเพื่อเพิ่มหรือแก้ไขกิจกรรม</p>
             </div>
             <button
               type="button"
               onClick={() => setIsLoginModalOpen(true)}
-              className="min-h-11 shrink-0 text-sm font-semibold px-3.5 py-2 bg-sky-800 hover:bg-sky-900 text-white rounded-lg transition-colors font-sans whitespace-nowrap"
+              className="shrink-0 whitespace-nowrap rounded-xl bg-sky-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-sky-800"
             >
               เข้าสู่ระบบ
             </button>
@@ -845,53 +844,24 @@ export default function App() {
         )}
 
         {searchTerm && (
-          <div role="status" className="bg-slate-100 border border-slate-200 rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3">
-            <div className="event-copy min-w-0 text-sm text-slate-600 font-sans">
-              กำลังค้นหาด้วยคำว่า: <strong className="text-slate-900 font-bold">"{searchTerm}"</strong> พบผลลัพธ์ <strong className="text-red-600 text-sm font-bold">{filteredEvents.length}</strong> รายการ
-            </div>
+          <div role="status" className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2.5">
+            <p className="event-copy min-w-0 text-sm text-slate-600">
+              ผลการค้นหา <strong className="font-semibold text-slate-900">&ldquo;{searchTerm}&rdquo;</strong>
+              <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{filteredEvents.length} รายการ</span>
+            </p>
             <button
               id="clear-search-btn"
+              type="button"
               onClick={() => setSearchTerm("")}
-              className="min-h-11 shrink-0 text-sm font-semibold text-red-700 hover:text-red-800 font-sans"
+              className="shrink-0 rounded-xl px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50"
             >
               ล้างการค้นหา
             </button>
           </div>
         )}
 
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 max-w-sm mb-4 sm:mb-6">
-          <button
-            id="tab-calendar-btn"
-            type="button"
-            aria-pressed={activeTab === "calendar"}
-            onClick={() => setActiveTab("calendar")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-              activeTab === "calendar"
-                ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                : "text-slate-500 hover:text-slate-800 border border-transparent"
-            }`}
-          >
-            <Calendar className="w-4 h-4 text-red-600" />
-            <span>ปฏิทินงานประชุม</span>
-          </button>
-          <button
-            id="tab-analytics-btn"
-            type="button"
-            aria-pressed={activeTab === "analytics"}
-            onClick={() => setActiveTab("analytics")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-              activeTab === "analytics"
-                ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                : "text-slate-500 hover:text-slate-800 border border-transparent"
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 text-slate-600" />
-            <span>วิเคราะห์และสถิติ</span>
-          </button>
-        </div>
-
         {activeTab === "analytics" ? (
-          <Suspense fallback={<div className="bg-white border border-slate-100 rounded-xl p-6 text-sm text-slate-500">กำลังโหลดรายงานสถิติ...</div>}>
+          <Suspense fallback={<div className="rounded-2xl border border-slate-200/70 bg-white p-6 text-sm text-slate-500">กำลังโหลดรายงานสถิติ...</div>}>
             <MeetingStatsDashboard events={events} groups={groups} />
           </Suspense>
         ) : (
@@ -995,24 +965,27 @@ export default function App() {
         </div>
       )}
 
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      <div aria-live="polite" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-end gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-96">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`p-4 rounded-xl shadow-lg border text-white text-xs font-sans font-medium flex items-center justify-between gap-3 pointer-events-auto transform transition-all translate-y-0 opacity-100 animate-slide-in ${
-              toast.type === "success"
-                ? "bg-slate-900 border-slate-800"
-                : toast.type === "error"
-                  ? "bg-red-600 border-red-500"
-                  : "bg-indigo-600 border-indigo-500"
-            }`}
+            role={toast.type === "error" ? "alert" : "status"}
+            className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm text-slate-700 shadow-xl shadow-slate-900/10"
           >
-            <span>{toast.message}</span>
+            <span
+              aria-hidden="true"
+              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                toast.type === "success" ? "bg-emerald-500" : toast.type === "error" ? "bg-red-500" : "bg-sky-500"
+              }`}
+            />
+            <span className="min-w-0 flex-1 leading-relaxed">{toast.message}</span>
             <button
+              type="button"
+              aria-label="ปิดการแจ้งเตือน"
               onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
-              className="text-white/60 hover:text-white font-bold"
+              className="-m-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             >
-              x
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         ))}

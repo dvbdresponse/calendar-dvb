@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Noto Sans Thai", "Inter", ui-sans-serif, system-ui;
+  --font-sans: "Inter", "IBM Plex Sans Thai", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -18,6 +18,11 @@
   }
 
   input, textarea { caret-color: var(--color-red-700); }
+
+  body {
+    background-color: var(--color-slate-50);
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
 .skip-link {
@@ -46,7 +51,6 @@
   width: 100%;
   max-width: none;
 }
-.calendar-event-card button { min-height: 2.75rem; }
 
 .calendar-event-preview {
   max-height: min(22rem, calc(100dvh - 1rem));
@@ -88,6 +92,15 @@
 #toggle-stats-dashboard-btn { min-width: 2.75rem; }
 
 [role="dialog"] button { min-height: 2.75rem; }
+
+.app-header nav button,
+.calendar-surface [aria-label="เครื่องมือปฏิทิน"] button,
+.calendar-surface [aria-label="รายการวาระงาน"] [aria-pressed] {
+  min-height: 2.25rem;
+}
+#prev-month-btn, #next-month-btn { min-width: 2.25rem; }
+.calendar-surface [role="group"] button { min-height: 2rem; }
+.calendar-event-card button { min-height: 2.5rem; }
 
 @media (max-width: 639px) {
   .calendar-surface button { font-size: 0.875rem; }
